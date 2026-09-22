@@ -55,6 +55,7 @@ PRICING = {
     "openai/gpt-5-nano": (0.025, 0.20),
     "anthropic/claude-sonnet-5": (2.0, 10.0),
     "google/gemini-3.5-flash": (1.5, 9.0),
+    "google/gemini-3.5-flash#minimal": (1.5, 9.0),
 }
 
 
