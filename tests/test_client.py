@@ -1,3 +1,4 @@
+import json
 import pytest
 
 from jevbench.client import _parse_llm
@@ -164,3 +165,32 @@ def test_reasoning_variant_is_parsed_but_kept_in_the_label():
 
     assert split_variant("openai/gpt-5-nano#minimal") == ("openai/gpt-5-nano", "minimal")
     assert split_variant("openai/gpt-5-nano") == ("openai/gpt-5-nano", "")
+
+
+def test_local_model_needs_no_key_and_hits_the_local_server(monkeypatch):
+    import jevbench.client as client
+    from jevbench.questions import monolithic
+
+    monkeypatch.setattr(client, "api_key", lambda: (_ for _ in ()).throw(
+        AssertionError("a local model must not need an OpenRouter key")))
+    seen = {}
+
+    def fake_urlopen(req, timeout):
+        seen["url"], seen["auth"] = req.full_url, req.get_header("Authorization")
+        seen["body"], seen["timeout"] = json.loads(req.data), timeout
+
+        class R:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return json.dumps({
+                "choices": [{"message": {"content": '{"verdict": {"choice": "nta", "confidence": 0.7}}'}}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5}}).encode()
+        return R()
+
+    monkeypatch.setattr(client.urllib.request, "urlopen", fake_urlopen)
+    a = client.ask("a post", monolithic(), "local/qwen-27b")
+    assert seen["url"] == client.LOCAL_URL and seen["auth"] is None
+    assert seen["body"]["model"] == "qwen-27b" and "reasoning" not in seen["body"]
+    assert seen["timeout"] >= 300
+    assert a.model == "local/qwen-27b" and a.cost_usd == 0.0
+    assert a.choices["verdict"].choice == "nta"

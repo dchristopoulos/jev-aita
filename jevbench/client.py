@@ -25,13 +25,18 @@ UNPARSED_CHOICE = "__unparsed__"
 
 DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions"
 CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
+# Any OpenAI-compatible server on this machine (LM Studio's default port).
+# Models are named `local/<id>` so they get their own rows and cost nothing.
+LOCAL_URL = os.environ.get("LOCAL_LLM_URL", "http://localhost:1234/v1/chat/completions")
+LOCAL_PREFIX = "local/"
 
 # $/M tokens. Jev bills output at zero; that asymmetry is the finding to test.
 PRICING = {
     "~typesafe/jev-latest": (0.042, 0.0),
     "openai/gpt-5-nano#minimal": (0.025, 0.20),
     "openai/gpt-5-nano": (0.025, 0.20),
-    "anthropic/claude-sonnet-5": (3.0, 15.0),
+    "anthropic/claude-sonnet-5": (2.0, 10.0),
+    "google/gemini-3.5-flash": (1.5, 9.0),
 }
 
 
@@ -146,13 +151,14 @@ def _post(url: str, body: dict, timeout: float = 30.0,
     models. A retried call reports the successful attempt's latency; including
     backoff sleep would misrepresent steady-state latency.
     """
-    key = api_key()
-    if "REPLACE-ME" in key:
+    local = url == LOCAL_URL
+    key = "" if local else api_key()
+    if not local and "REPLACE-ME" in key:
         raise FatalApiError(
             "The .env file still has the placeholder key. Replace "
             "sk-or-v1-REPLACE-ME with your real key from openrouter.ai/keys."
         )
-    if not key:
+    if not local and not key:
         raise FatalApiError(
             "No API key. Either export OPENROUTER_API_KEY, or put it in a .env file "
             "at the repo root as OPENROUTER_API_KEY=sk-or-v1-... (.env is gitignored)."
@@ -161,7 +167,8 @@ def _post(url: str, body: dict, timeout: float = 30.0,
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode(),
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        headers={"Content-Type": "application/json",
+                 **({"Authorization": f"Bearer {key}"} if key else {})},
     )
     last = None
     for attempt in range(retries):
@@ -185,6 +192,11 @@ def _post(url: str, body: dict, timeout: float = 30.0,
                 last = e
                 time.sleep(2**attempt)
                 continue
+            if local:
+                # Nothing listening: every remaining item would fail the same way.
+                raise FatalApiError(
+                    f"No local model server at {url}. Start LM Studio's server "
+                    "(`lms server start`) and load the model first.") from e
             raise ApiError(f"Network error: {e}") from e
     raise ApiError(f"Exhausted {retries} retries: {last}")
 
@@ -353,7 +365,14 @@ def ask_llm(text: str, questions: dict[str, dict], model: str) -> Answer:
         # the latency and cost columns measure thinking budget, not the task.
         "reasoning": {"effort": effort or "low"},
     }
-    data, dt, tries = _post(CHAT_URL, body)
+    if base.startswith(LOCAL_PREFIX):
+        # Local servers take the bare model id, may not know the reasoning
+        # field, and a 27B model on a laptop needs far more than 30 s.
+        body["model"] = base[len(LOCAL_PREFIX):]
+        del body["reasoning"]
+        data, dt, tries = _post(LOCAL_URL, body, timeout=600.0)
+    else:
+        data, dt, tries = _post(CHAT_URL, body)
     prompt_tok, completion_tok, billed = read_usage(data)
     try:
         content = data["choices"][0]["message"]["content"]
