@@ -16,7 +16,6 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .questions import DIMENSIONS
 
 # What a Choice answer becomes when the model returns something that is not one
 # of the supplied options. Deliberately not a real option: defaulting to the

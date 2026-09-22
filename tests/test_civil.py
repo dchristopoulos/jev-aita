@@ -6,7 +6,7 @@ so the tests guard that property rather than re-testing the metrics.
 import json
 from pathlib import Path
 
-from jevbench.civil import BANDS, TOXIC, Comment, load_or_fetch, report
+from jevbench.civil import BANDS, TOXIC, report
 from jevbench.metrics import brier, ece
 
 

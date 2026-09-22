@@ -10,13 +10,13 @@ situation and a few questions, and it answers each one with a probability: *yes,
 TypeSafe, the company behind it, calls it a "System One" model (fast, gut-feeling judgments)
 and says it's **40–200× faster and cheaper** than a normal LLM at this kind of work.
 
-That's a big claim, so I wanted to see for myself. I gave myself a $3 budget and picked
-r/AmItheAsshole because I wanted a test that's actually fun to read through.
+That's a big claim, so I wanted to see for myself.
 
 ## What I did
 
 I needed a test where the right answer is a quick judgment call, and
-[r/AmItheAsshole](https://www.reddit.com/r/AmItheAsshole/) is perfect for that. Someone
+[r/AmItheAsshole](https://www.reddit.com/r/AmItheAsshole/) is perfect for that. It's also fun:
+everyone has an opinion, and you can read every case and pick a side yourself. Someone
 describes a fight with their family, and thousands of strangers vote on who was wrong. Every
 post ends in one of four verdicts:
 
@@ -181,6 +181,40 @@ for combining them threw most of it away.
 **The cost claim didn't hold up.** 40–200× might be true against big models, but I only tested
 a small, cheap one, and against that it's about 1.2×. It's still cheaper, just not by the amount
 in the headline.
+
+## Questions you might have
+
+**How do you decide if an answer is correct?**
+It's correct if it matches the verdict Reddit gave the post. For the toxicity test, the answer is
+compared with the share of people who rated the comment toxic.
+
+**So Reddit is always right?**
+No. Reddit tends to side with whoever wrote the post, and a post is only one side of the story.
+"Correct" here means "agrees with Reddit", not "morally right". The baby-name example above is one
+where Jev's answer is arguably the fairer one.
+
+**Did the models see Reddit's answer?**
+No. Only the title and the post text. Posts where the author edited the verdict into their own
+text were removed.
+
+**Is 53% good?**
+It beats GPT-nano and random guessing (25%). But on real Reddit, where 78% of posts are NTA, just
+saying "NTA" every time would beat it. See [What I learned](#what-i-learned).
+
+**Why compare against a small GPT and not a big one?**
+Jev is built to compete with small, fast models, so that's the fair matchup. A big model would
+probably be more accurate, and much slower and more expensive. I didn't test one.
+
+**Is 200 posts enough?**
+For big gaps, like Jev vs GPT-nano, yes. For small ones, no: two of my setups scored 55% and 53%,
+and that difference is just noise.
+
+**Would you get the same numbers again?**
+Close, but not exactly. Answers shift a little between runs. Every answer from this run is saved
+in [`runs/`](runs/), so the numbers here can always be checked.
+
+**Other limits.** English Reddit posts only. The rare verdicts (ESH, NAH) have 30 examples each.
+Some posts had few votes, so Reddit's verdict on those is less settled.
 
 ## Can it do better?
 

@@ -22,7 +22,6 @@ import subprocess
 import sys
 import time
 from collections import Counter
-from dataclasses import asdict
 from pathlib import Path
 
 from .client import PRICING, ApiError, FatalApiError, ask
@@ -187,7 +186,7 @@ def main() -> int:
     if args.estimate:
         return 0
     if args.budget and projected > args.budget:
-        print(f"Projected cost exceeds the cap. Raise --budget or lower -n.", file=sys.stderr)
+        print("Projected cost exceeds the cap. Raise --budget or lower -n.", file=sys.stderr)
         return 1
 
     out = args.out or RUNS / f"{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
