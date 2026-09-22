@@ -1,0 +1,12 @@
+data/*.jsonl
+__pycache__/
+.venv/
+*.egg-info/
+.pytest_cache/
+.idea/
+.DS_Store
+.env
+
+# The real key never ships; the template always must. A global `.env.*` rule
+# would otherwise swallow the example and leave a cloner with nothing to copy.
+!.env.example

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jev-bench"
+version = "0.1.0"
+description = "Is Jev actually calibrated? Measuring TypeSafe's System One model against LLM baselines on r/AmItheAsshole verdicts."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools]
+# Explicit: flat-layout auto-discovery sees jevbench/, tests/, docs/, data/ and
+# refuses to guess, which breaks `pip install -e .` in CI.
+packages = ["jevbench"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]  # tests import jevbench from the repo root; no install step
