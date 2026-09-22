@@ -1,269 +1,132 @@
-# jev-bench
+# Jev on Reddit AITA verdicts
 
-**I tested a new kind of AI model on Reddit's favourite question: am I the asshole?**
+**Bottom line:** Jev forecast second-best of seven setups, behind Sonnet 5,
+at 1/60th of Sonnet's cost and 6× its speed. It was not the "40x-200x faster"
+TypeSafe claims.
 
-## Why
+[Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) is
+TypeSafe's "System One" model. You ask it a multiple-choice question, and in
+one fast call it returns a probability for each answer instead of writing text.
+TypeSafe says it matches LLMs on quick judgments like this. I tested
+`jev-1.13-20260917` against Sonnet 5, GPT-5 nano and two local open-weight
+models on 770 posts from 2025 on Reddit's AITA forum, where readers vote on
+who was at fault in a conflict.
 
-A new model called [Jev](https://en.wikipedia.org/wiki/Jev_(AI_model)) came out recently, and it
-works differently from the chatbots we're used to. It doesn't write text. You give it a
-situation and a few questions, and it answers each one with a probability: *yes, 82% sure*.
-TypeSafe, the company behind it, calls it a "System One" model (fast, gut-feeling judgments)
-and says it's **40–200× faster and cheaper** than a normal LLM at this kind of work.
+Each model gives a probability for each of the forum's four verdicts:
 
-That's a big claim, so I wanted to see for myself.
+| **YTA** | **NTA** | **ESH** | **NAH** |
+|---|---|---|---|
+| the poster is at fault | the other party is | everyone is | no one is |
 
-## What I did
-
-I needed a test where the right answer is a quick judgment call, and
-[r/AmItheAsshole](https://www.reddit.com/r/AmItheAsshole/) is perfect for that. It's also fun:
-everyone has an opinion, and you can read every case and pick a side yourself. Someone
-describes a fight with their family, and thousands of strangers vote on who was wrong. Every
-post ends in one of four verdicts:
-
-| | |
-|---|---|
-| **YTA** | you're the asshole |
-| **NTA** | not the asshole |
-| **ESH** | everyone sucks here |
-| **NAH** | no assholes here |
-
-I took 200 real posts and, through [OpenRouter](https://openrouter.ai), showed each one to Jev and to OpenAI's cheapest model (`gpt-5-nano`),
-and compared their verdicts with what Reddit decided. The models only ever saw the post itself,
-never the votes or the comments.
-
-Then I ran a second test on 300 comments from [Civil Comments](https://huggingface.co/datasets/google/civil_comments),
-where groups of people rated whether each comment was toxic. That dataset tells you *what share*
-of people said yes (say, 6 out of 10), so it can check whether Jev's "60% sure" really means 60%.
-
-2,400 requests in total, and the whole thing cost **$0.22**.
-
-## How Jev works
-
-Talking to Jev is different from chatting with GPT. There's no conversation. Each request has two
-parts: the **situation** (here, the Reddit post) and a list of **questions** about it. Jev
-answers every question at the same time and sends back numbers instead of sentences.
-
-There are three kinds of question:
-
-| Type | You ask | You get back |
-|---|---|---|
-| **Noul** | a yes/no question | how likely "yes" is, e.g. `0.74` |
-| **Choice** | pick one option from a list | the pick, the odds for each option, and how confident it is |
-| **Score** | where this falls on a scale you describe | a position on the scale, plus confidence |
-
-For each post I asked 10 questions in one request, using all three types:
-
-| Question | Type | In plain words |
-|---|---|---|
-| `op_broke_agreement` | noul | Did the poster break a promise? |
-| `op_disproportionate` | noul | Did the poster overreact? |
-| `op_disregarded` | noul | Did the poster ignore someone's clearly stated wishes? |
-| `op_deceived` | noul | Did the poster lie or hide something? |
-| `other_behaved_badly` | noul | Did the other person behave badly? |
-| `other_escalated` | noul | Did the other person make it worse? |
-| `stakes_high` | noul | Is something serious at stake (money, housing, a relationship)? |
-| `op_omits` | noul | Is the poster probably leaving out details that make them look bad? |
-| `verdict` | choice | YTA, NTA, ESH or NAH? |
-| `severity` | score | How wrong was the poster, from "blameless" to "caused real harm"? |
-
-Each question also comes with a short description of what "yes" and "no" mean, so Jev knows
-where the line is. None of the 8 small questions mention Reddit or verdicts, and a test checks
-that. They only ask about what happened.
-
-That gave me two ways to reach a verdict from the same request:
-
-1. **Ask directly**: just read the answer to the `verdict` question.
-2. **Work it out myself**: take the 8 yes/no answers and apply a simple rule. If the poster did
-   something wrong and the other person didn't, it's YTA. If only the other person did, NTA.
-   Both, ESH. Neither, NAH.
-
-TypeSafe's docs recommend the second approach. Testing whether that advice actually helps was
-one of the main reasons I built this.
-
-## What it looks like
-
-A real answer from the benchmark, and one of my favourites because Jev disagrees with Reddit
-and you can see why:
-
-```
-aita for standing my ground?
-  r/AmItheAsshole · 11 points
-
-  i (26f) have been with my (27m) partner for almost 3 years ... he wishes to name a son
-  first name his grandfathers name middle name his name. i think it is sweet he wants to
-  honor the family names but i hate that idea ...
-
-  The model's reasoning  (8 yes/no questions, one call)
-    █████████████·····  74%  stakes_high
-    ████████··········  47%  op_omits
-    ██████············  35%  op_disregarded
-    ████··············  21%  op_disproportionate
-    ███···············  18%  other_escalated
-    ███···············  16%  other_behaved_badly
-    █·················   7%  op_broke_agreement
-    █·················   6%  op_deceived
-
-    severity 8% (confidence 76%)
-
-  Verdicts
-    Reddit said           NTA
-    Asked directly        NAH   confidence 32%
-    Worked out in code    NAH   from the 8 answers above
-    distribution: NAH 48%  NTA 47%  YTA 4%  ESH 1%
-
-  Top comment on Reddit
-    nta. naming a child is for both parents to do and is a one vote no / two votes
-    yes system. he cannot unilaterally pick the names ...
-
-  → disagrees with Reddit
-```
-
-Reddit sided with the poster. Jev says **nobody** is the asshole, and you can follow its
-reasoning. It thinks the stakes are high (74%), but it doesn't think the boyfriend behaved
-badly (16%) or that the poster did (every "did the poster…" answer is under 50%). No baby exists
-yet, and he only *wants* a name. That's a disagreement, not bad behaviour.
-
-It also told us it wasn't sure: 48% NAH against 47% NTA, with a confidence of 32%. That matters.
-In a real system this is the kind of answer you'd pass to a person instead of trusting it.
-
-The whole thing took **0.43 seconds** and cost a fraction of a cent.
+I have no affiliation with TypeSafe and paid for every call myself (about
+$2.70 in total).
 
 ## Results
 
-### Jev vs gpt-5-nano, same 200 posts
+![Weighted Brier score with 95% intervals for each model, against a no-model baseline](docs/headline.svg)
 
-| | Jev | gpt-5-nano (no thinking) | gpt-5-nano (thinking) |
-|---|---|---|---|
-| agrees with Reddit | **53.0%** | 36.5% | 45.0% |
-| typical response time | **0.38 s** | 1.27 s | 4.20 s |
-| slowest 5% | **0.53 s** | 2.49 s | 7.21 s |
-| cost per 1,000 posts | **$0.035** | $0.043 | $0.158 |
-| broken answers | **0** | 3 | 14 |
+How to read the table:
 
-Jev was more accurate, faster and cheaper, all at the same time. Guessing at random would get
-25%, and always answering the most common verdict gets 35% on this sample.
+- **Brier score** measures how good the four probabilities are, from 0
+  (perfect) to 2. Lower is better.
+- **Weighted** means scored as if the posts had the real forum's mix of
+  verdicts (74% NTA). The sample deliberately includes more of the rare
+  verdicts so they can be measured.
+- **Top-1** is plain accuracy: how often the most likely verdict was right.
+- **Macro recall** averages the hit rate of each of the four verdicts, so a
+  model that always says NTA gets 25%.
+- Brackets are 95% confidence intervals.
 
-### Checking what TypeSafe claims
+| Model | Weighted Brier ↓ [95% CI] | Weighted top-1 [95% CI] | Macro recall | Median call | $ per 1,000 posts |
+|---|---:|---:|---:|---:|---:|
+| Sonnet 5 | 0.344 [0.321, 0.370] | 76.9% [74.5, 79.1] | 36.1% | 2.46 s | $2.291 |
+| **Jev, direct question** | 0.369 [0.344, 0.398] | 75.4% [72.7, 77.8] | 37.4% | 0.39 s | $0.037 |
+| Qwen 3.6 35B-A3B, local | 0.410 [0.382, 0.437] | 75.3% [73.3, 77.2] | 30.3% | 1.62 s | not billed |
+| GPT-5 nano, low effort | 0.480 [0.454, 0.509] | 66.1% [62.7, 69.4] | 35.5% | 4.83 s | $0.165 |
+| Jev, two questions | 0.515 [0.497, 0.535] | 62.6% [59.6, 65.5] | 31.6% | 0.38 s | $0.037 |
+| GPT-5 nano, minimal effort | 0.569 [0.552, 0.585] | 57.2% [53.7, 60.8] | 25.9% | 1.53 s | $0.056 |
+| Gemma 4 26B-A4B, local | 0.588 [0.539, 0.636] | 58.3% [54.3, 62.3] | 44.4% | 1.57 s | not billed |
+| *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
 
-| Claim | Holds up? | What I measured |
-|---|---|---|
-| Much faster | ✅ yes | 3–11× faster, and it stays under half a second |
-| Asking more questions is nearly free | ✅ for speed | 10 questions take the same time as 1, but cost 1.7× more |
-| Answers are always well-formed | ✅ yes | 0 broken answers in 900 requests |
-| 40–200× cheaper | ❌ no | about **1.2×** cheaper than the cheapest GPT |
-| Its percentages are calibrated | ⚠️ not out of the box | see below |
+- **Sonnet 5 was best; Jev was a close second.** Sonnet's lead is 0.025
+  (95% CI 0.003 to 0.046). Jev beat both GPT-5 nano settings and both local
+  models.
+- **Jev was fast and cheap, but not 40–200× faster.** Its median call took
+  0.39 s, inside TypeSafe's 70–500 ms claim. That is 6.3× faster and 62×
+  cheaper than Sonnet, and 3.9× faster and 1.5× cheaper than GPT-5 nano. The
+  chat models here did little or no reasoning, while TypeSafe compared against
+  a model with its default reasoning.
+- **Guessing from base rates is hard to beat.** Only Sonnet and Jev clearly
+  beat it. Always answering NTA is right 74% of the time, and every model
+  misses more than half of the ESH and NAH posts.
+- **Asking Jev two yes/no questions instead of one four-way question made it
+  worse**, at least when the two answers are combined by multiplication.
 
-## What I learned
+Local models ran as 4-bit MLX builds on one laptop; Qwen's 4 malformed answers
+count as wrong. More metrics, confusion matrices and calibration are in the
+[full results](docs/results.md).
 
-**It's quick, and it knows when it's unsure.** This was the most useful result. When Jev said
-it was at least 90% confident, it matched Reddit about **90%** of the time. That happened on about
-1 post in 6. So you could let it handle the obvious cases on its own and send everything else to
-a person.
+## What this does not show
 
-**Its percentages run high, but they're easy to fix.** Against the toxicity ratings, Jev
-consistently called comments more toxic than people did (GPT did too, a bit less). But it put
-the comments in the right *order* a little better than GPT did. When the order is right and only the
-scale is off, you can fix it with two numbers learned from 150 examples. On comments it
-hadn't seen, that cut Jev's calibration error from 0.163 to **0.039**.
+Every model was asked for four probabilities: Jev through its native question
+type, chat models through a prompt with the same verdict definitions that
+returns JSON. Most people would ask a chat model for one label instead, so this
+says nothing about label-only accuracy, or about speed and cost for a one-word
+answer. It also says nothing about who is actually right: the target is the
+forum's verdict, which matches the commenters' upvote-weighted verdict on 704
+of 770 posts.
 
-**Four verdicts shrank to two.** Jev handled YTA and NTA fine but almost never said "everyone
-sucks here" (1 out of 30). Because most real AITA posts are NTA, answering "NTA" every time would
-actually score slightly better than Jev on real Reddit (78% vs 76%). The 53% above is on a
-sample I balanced on purpose so the rare verdicts had enough examples.
+## How it was tested
 
-**My own idea didn't work, and I was wrong about why.** TypeSafe suggests splitting a big
-question into small ones and combining the answers yourself. I tried that with 8 small
-questions and a simple rule to combine them. It scored 41.5%, worse than just asking directly.
-Before running it I'd written down why I thought it would fail, and when I checked, the data
-said my explanation was wrong. The small questions had the right information. My 9-line rule
-for combining them threw most of it away.
+- **Posts:** 770 from UC Berkeley D-Lab's
+  [2025 dataset](https://huggingface.co/datasets/ucberkeley-dlab/fragility-moral-judgment-llms)
+  (CC BY 4.0, pinned revision): 365 NTA, 285 YTA, 65 ESH and 55 NAH. Models
+  saw only the title and text. Posts that state their own verdict were removed.
+- **Plan:** the [protocol](docs/FINAL_PROTOCOL.md) lists four deviations from
+  it, including a parser fix that restarted two runs. Neither the plan nor the
+  exact code that ran was committed before the runs, so their timing can't be
+  proven from git; the protocol lists what can still be checked.
+- **Prompts:** in [`client.py`](jevbench/client.py) and
+  [`questions.py`](jevbench/questions.py), pinned by a test and checked against
+  billed token counts by [a script](scripts/check_prompt_tokens.py).
+- **Intervals:** 95% bootstrap over posts within each verdict. They exclude
+  run-to-run variation: at temperature 0, a restarted GPT-5 nano run repeated
+  only 64 of 103 answers.
+- **Latency:** one laptop in UTC+3, via OpenRouter, one evening. Jev is served
+  from the US West Coast, so its times include a long network trip.
 
-**The cost claim didn't hold up.** 40–200× might be true against big models, but I only tested
-a small, cheap one, and against that it's about 1.2×. It's still cheaper, just not by the amount
-in the headline.
+Details and limitations: [methodology](docs/METHODOLOGY.md).
 
-## Questions you might have
+## Reproduce
 
-**How do you decide if an answer is correct?**
-It's correct if it matches the verdict Reddit gave the post. For the toxicity test, the answer is
-compared with the share of people who rated the comment toxic.
-
-**So Reddit is always right?**
-No. Reddit tends to side with whoever wrote the post, and a post is only one side of the story.
-"Correct" here means "agrees with Reddit", not "morally right". The baby-name example above is one
-where Jev's answer is arguably the fairer one.
-
-**Did the models see Reddit's answer?**
-No. Only the title and the post text. Posts where the author edited the verdict into their own
-text were removed.
-
-**Is 53% good?**
-It beats GPT-nano and random guessing (25%). But on real Reddit, where 78% of posts are NTA, just
-saying "NTA" every time would beat it. See [What I learned](#what-i-learned).
-
-**Why compare against a small GPT and not a big one?**
-Jev is built to compete with small, fast models, so that's the fair matchup. A big model would
-probably be more accurate, and much slower and more expensive. I didn't test one.
-
-**Is 200 posts enough?**
-For big gaps, like Jev vs GPT-nano, yes. For small ones, no: two of my setups scored 55% and 53%,
-and that difference is just noise.
-
-**Would you get the same numbers again?**
-Close, but not exactly. Answers shift a little between runs. Every answer from this run is saved
-in [`runs/`](runs/), so the numbers here can always be checked.
-
-**Other limits.** English Reddit posts only. The rare verdicts (ESH, NAH) have 30 examples each.
-Some posts had few votes, so Reddit's verdict on those is less settled.
-
-## Can it do better?
-
-Yes, very likely. These are the results for one setup, and most of it can be tuned:
-
-- **The rule that combines the 8 answers.** Mine was simple and lost information. A small trained model on the same answers already got 51.5% instead of 41.5%.
-- **The question wording.** Small changes to how a question is phrased change the answers.
-- **Calibration.** Two numbers fitted on 150 examples already fixed most of the over-confidence.
-- **The confidence cut-off.** Where you set it decides how much Jev handles alone and how accurate that part is.
-
-So read the numbers as a starting point, not a ceiling.
-
-## Try it
-
-You need Python 3.10 or newer. You can browse the posts and Reddit's verdicts without any
-API key:
+Python 3.10+, standard library only. Regenerate the results and charts from
+the committed logs:
 
 ```bash
-git clone https://github.com/dchristopoulos/jev-bench && cd jev-bench
-python -m jevbench.demo --read -n 3
+python -m jevbench.report runs/final-*.jsonl --priors data/final-ucb-2025.source.json --chart docs/headline.svg
 ```
 
-To watch Jev judge them, add an [OpenRouter](https://openrouter.ai) key (a few cents is plenty):
+To also get the flair-versus-comments check and reproduce
+`docs/results.md` byte for byte, rebuild the source and sample (each is checked
+against its SHA-256), then add `--source-raw data/ucb-2025-raw.jsonl`:
 
 ```bash
-cp .env.example .env        # paste your key in
-python -m jevbench.demo -n 3
+pip install pyarrow==25.0.1
+curl -L -o data/ucb-2025-source.parquet https://huggingface.co/datasets/ucberkeley-dlab/fragility-moral-judgment-llms/resolve/cb4c298cbfa93ce9cdf56685f12a55b0a6928110/dilemmas/train.parquet
+echo "40f43df275dfc56462453d5347f4927808adcf818095e5bcd436b35b945dbae7  data/ucb-2025-source.parquet" | shasum -a 256 -c
+python scripts/export_source.py data/ucb-2025-source.parquet data/ucb-2025-raw.jsonl
+python -m jevbench.sample_2025 --raw data/ucb-2025-raw.jsonl --out data/final-ucb-2025.jsonl
+echo "2f8cae7c7bebe3c259efbe69664b463919a9db5b0db386d23a79d8892f82479d  data/final-ucb-2025.jsonl" | shasum -a 256 -c
 ```
 
-You'll see output like the example above for each post.
+New calls need an OpenRouter key in `.env` (see `.env.example`) and
+`python -m jevbench.bench --help`. The runner has a spending cap and records
+the exact prompts in each run's manifest.
 
-To rerun the whole benchmark: `./run.sh` (it shows the cost and asks before spending anything).
-
-## How it's built
-
-- **Python, standard library only.** No dependencies to install, just `urllib` talking to
-  OpenRouter.
-- **Every request is saved.** All 2,400 are in [`runs/`](runs/) with their answers, timing
-  and cost, so you can check any number here yourself.
-- **A spending cap.** The runner stops the moment it reaches the budget you set.
-- **77 tests** covering the maths, the API parsing and the data sampling. They run without a
-  key.
-
-The full write-up has the question design, every table, confidence intervals, the statistics,
-and the bugs I hit along the way: **[docs/METHODOLOGY.md](docs/METHODOLOGY.md)**.
-
-## Data
-
-- [AITA Reddit dataset](https://huggingface.co/datasets/OsamaBsher/AITA-Reddit-Dataset): 270k posts with Reddit's verdict
-- [Civil Comments](https://huggingface.co/datasets/google/civil_comments): 2M comments with human toxicity ratings
-
-Both download free from HuggingFace, no account needed.
+```
+jevbench/   runner, clients, metrics and report (stdlib only)
+scripts/    source export and prompt verification (need pyarrow / tiktoken)
+runs/       final request logs; diagnostic/ and dev-2023/ hold runs not used
+docs/       results, methodology, protocol and charts
+tests/      pytest suite, no network
+```
