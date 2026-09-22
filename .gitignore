@@ -1,4 +1,5 @@
 data/*.jsonl
+data/*.parquet
 __pycache__/
 .venv/
 *.egg-info/

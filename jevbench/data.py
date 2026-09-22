@@ -41,9 +41,13 @@ TARGET_MIX = {"nta": 0.35, "yta": 0.35, "nah": 0.15, "esh": 0.15}
 
 # Posters often edit the verdict back into their own post ("EDIT: seems like
 # I'm NTA, thanks all"). That hands the model the answer inside the state, so
-# those posts are dropped rather than scored. The current sample contains none,
-# but that is a property of one seed, not of the dataset.
-VERDICT_LEAK = re.compile(r"\b(yta|nta|esh|nah)\b", re.IGNORECASE)
+# those posts are dropped before sampling rather than scored.
+VERDICT_LEAK = re.compile(
+    r"\b(?:yta|nta|esh|nah|you(?:\s+are|'re)\s+the\s+(?:asshole|a\s*hole)"
+    r"|i(?:\s+(?:am|was)|'m)\s+(?:the|a(?:\s+\w+)?)\s+(?:asshole|a\s*hole)"
+    r"|not\s+the\s+(?:asshole|a\s*hole)|everyone\s+sucks\s+here"
+    r"|no\s+assholes?\s+here)\b", re.IGNORECASE,
+)
 
 
 def leaks_verdict(text: str) -> bool:

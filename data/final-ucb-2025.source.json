@@ -1,0 +1,19 @@
+{
+  "dataset": "ucberkeley-dlab/fragility-moral-judgment-llms",
+  "revision": "cb4c298cbfa93ce9cdf56685f12a55b0a6928110",
+  "raw_sha256": "aa9ca88f8ec15562234d4da19b98a08b9031ec04c1b0c2d7561c821aec17f270",
+  "seed": 20260923,
+  "eligible_mix": {
+    "nta": 1361,
+    "yta": 342,
+    "esh": 71,
+    "nah": 65
+  },
+  "sample_mix": {
+    "yta": 285,
+    "nta": 365,
+    "nah": 55,
+    "esh": 65
+  },
+  "criteria": "official four-class flair; 400-4000 cleaned body characters; no verdict phrase; no karma cutoff"
+}
