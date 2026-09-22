@@ -1,0 +1,39 @@
+{
+  "started": "2026-09-22T20:37:54+0300",
+  "git_sha": "",
+  "dataset": "OsamaBsher/AITA-Reddit-Dataset",
+  "n_posts": 200,
+  "seed": 0,
+  "verdict_mix": {
+    "nta": 70,
+    "esh": 30,
+    "yta": 70,
+    "nah": 30
+  },
+  "models": [
+    "openai/gpt-5-nano"
+  ],
+  "arms": [
+    "monolithic",
+    "decomposed",
+    "full"
+  ],
+  "questions_per_arm": {
+    "monolithic": 1,
+    "decomposed": 8,
+    "full": 10
+  },
+  "pricing_usd_per_mtok": {
+    "openai/gpt-5-nano": [
+      0.025,
+      0.2
+    ]
+  },
+  "budget_usd": 1.0,
+  "projected_usd": 0.025201,
+  "ok": 600,
+  "errors": 0,
+  "spend_usd": 0.130533,
+  "wall_s": 3058.6,
+  "stopped_early": ""
+}

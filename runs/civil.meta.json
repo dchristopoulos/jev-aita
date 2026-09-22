@@ -1,0 +1,14 @@
+{
+  "dataset": "google/civil_comments",
+  "n": 300,
+  "seed": 0,
+  "models": [
+    "~typesafe/jev-latest",
+    "openai/gpt-5-nano#minimal"
+  ],
+  "ok": 600,
+  "errors": 0,
+  "spend_usd": 0.011053,
+  "wall_s": 508.7,
+  "stopped_early": false
+}
