@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .idea/
+.serena/
 .DS_Store
 .env
 
