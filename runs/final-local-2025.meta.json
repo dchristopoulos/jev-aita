@@ -1,0 +1,49 @@
+{
+  "started": "2026-09-22T23:25:45+0300",
+  "git_sha": "e473a91",
+  "dataset": "ucberkeley-dlab/fragility-moral-judgment-llms",
+  "dataset_revision": "cb4c298cbfa93ce9cdf56685f12a55b0a6928110",
+  "sample_path": "data/final-ucb-2025.jsonl",
+  "sample_sha256": "2f8cae7c7bebe3c259efbe69664b463919a9db5b0db386d23a79d8892f82479d",
+  "code_sha256": "28bcf4f479903955c8cc816880fb8179d9322551f34b2c1c560d28952ef9a8ca",
+  "excluded_sample_paths": [
+    "data/sample.jsonl",
+    "data/pilot-20260922.jsonl"
+  ],
+  "min_score": 0,
+  "n_posts": 770,
+  "seed": 20260923,
+  "verdict_mix": {
+    "yta": 285,
+    "nta": 365,
+    "nah": 55,
+    "esh": 65
+  },
+  "models": [
+    "local/qwen/qwen3.6-35b-a3b#none",
+    "local/google/gemma-4-26b-a4b-qat#none"
+  ],
+  "local_server": "http://localhost:1234/api/v0/chat/completions",
+  "host": {
+    "cpu": "Apple M4 Pro",
+    "ram_gb": 48,
+    "model": "Mac16,8"
+  },
+  "arms": [
+    "monolithic"
+  ],
+  "questions_per_arm": {
+    "monolithic": 1
+  },
+  "pricing_usd_per_mtok": {
+    "local/qwen/qwen3.6-35b-a3b#none": null,
+    "local/google/gemma-4-26b-a4b-qat#none": null
+  },
+  "budget_usd": 0.01,
+  "projected_usd": 0.0,
+  "ok": 1540,
+  "errors": 0,
+  "spend_usd": 0.0,
+  "wall_s": 2441.9,
+  "stopped_early": ""
+}

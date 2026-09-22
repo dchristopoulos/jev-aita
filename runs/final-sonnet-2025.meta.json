@@ -1,0 +1,44 @@
+{
+  "started": "2026-09-22T23:11:08+0300",
+  "git_sha": "e473a91",
+  "dataset": "ucberkeley-dlab/fragility-moral-judgment-llms",
+  "dataset_revision": "cb4c298cbfa93ce9cdf56685f12a55b0a6928110",
+  "sample_path": "data/final-ucb-2025.jsonl",
+  "sample_sha256": "2f8cae7c7bebe3c259efbe69664b463919a9db5b0db386d23a79d8892f82479d",
+  "code_sha256": "6bb631e4bf460fb61dcb3a8bb0af530c5c02367eef735863cfdb24094060fdf8",
+  "excluded_sample_paths": [
+    "data/sample.jsonl",
+    "data/pilot-20260922.jsonl"
+  ],
+  "min_score": 0,
+  "n_posts": 770,
+  "seed": 20260923,
+  "verdict_mix": {
+    "yta": 285,
+    "nta": 365,
+    "nah": 55,
+    "esh": 65
+  },
+  "models": [
+    "anthropic/claude-sonnet-5"
+  ],
+  "arms": [
+    "monolithic"
+  ],
+  "questions_per_arm": {
+    "monolithic": 1
+  },
+  "pricing_usd_per_mtok": {
+    "anthropic/claude-sonnet-5": [
+      2.0,
+      10.0
+    ]
+  },
+  "budget_usd": 1.95,
+  "projected_usd": 1.201307,
+  "ok": 770,
+  "errors": 0,
+  "spend_usd": 1.764262,
+  "wall_s": 1939.0,
+  "stopped_early": ""
+}

@@ -1,0 +1,35 @@
+{
+  "started": "2026-09-22T22:05:55+0300",
+  "git_sha": "e473a91",
+  "dataset": "OsamaBsher/AITA-Reddit-Dataset",
+  "n_posts": 200,
+  "seed": 0,
+  "verdict_mix": {
+    "nta": 70,
+    "esh": 30,
+    "yta": 70,
+    "nah": 30
+  },
+  "models": [
+    "anthropic/claude-sonnet-5"
+  ],
+  "arms": [
+    "monolithic"
+  ],
+  "questions_per_arm": {
+    "monolithic": 1
+  },
+  "pricing_usd_per_mtok": {
+    "anthropic/claude-sonnet-5": [
+      2.0,
+      10.0
+    ]
+  },
+  "budget_usd": 0.5,
+  "projected_usd": 0.29136,
+  "ok": 200,
+  "errors": 0,
+  "spend_usd": 0.352224,
+  "wall_s": 443.7,
+  "stopped_early": ""
+}

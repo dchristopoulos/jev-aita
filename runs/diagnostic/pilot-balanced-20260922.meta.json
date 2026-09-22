@@ -1,0 +1,40 @@
+{
+  "started": "2026-09-22T22:38:04+0300",
+  "git_sha": "e473a91",
+  "dataset": "OsamaBsher/AITA-Reddit-Dataset",
+  "dataset_revision": "",
+  "sample_path": "data/sample.jsonl",
+  "sample_sha256": "7a19982ff4097746fdc56cb050da532bd9300edf582f3ac69b56480c3b836499",
+  "code_sha256": "6bb631e4bf460fb61dcb3a8bb0af530c5c02367eef735863cfdb24094060fdf8",
+  "excluded_sample_paths": [],
+  "min_score": 5,
+  "n_posts": 8,
+  "seed": 0,
+  "verdict_mix": {
+    "nta": 5,
+    "esh": 2,
+    "yta": 1
+  },
+  "models": [
+    "~typesafe/jev-latest"
+  ],
+  "arms": [
+    "balanced"
+  ],
+  "questions_per_arm": {
+    "balanced": 2
+  },
+  "pricing_usd_per_mtok": {
+    "~typesafe/jev-latest": [
+      0.042,
+      0.0
+    ]
+  },
+  "budget_usd": 0.01,
+  "projected_usd": 0.000224,
+  "ok": 8,
+  "errors": 0,
+  "spend_usd": 0.00027,
+  "wall_s": 3.3,
+  "stopped_early": ""
+}
