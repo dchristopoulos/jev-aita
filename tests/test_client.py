@@ -191,7 +191,7 @@ def test_local_model_needs_no_key_and_hits_the_local_server(monkeypatch):
 
     monkeypatch.setattr(client.urllib.request, "urlopen", fake_urlopen)
     a = client.ask("a post", monolithic(), "local/qwen-27b")
-    assert seen["url"] == "http://localhost:1234/v1/chat/completions" and seen["auth"] is None
+    assert seen["url"] == "http://localhost:1234/api/v0/chat/completions" and seen["auth"] is None
     assert seen["body"]["model"] == "qwen-27b" and "reasoning" not in seen["body"]
     assert seen["timeout"] >= 300
     assert a.model == "local/qwen-27b" and a.cost_usd == 0.0
@@ -200,7 +200,28 @@ def test_local_model_needs_no_key_and_hits_the_local_server(monkeypatch):
 
 def test_local_url_accepts_a_bare_host(monkeypatch):
     from jevbench.client import local_chat_url
-    for given in ("http://10.0.0.5:1234", "http://10.0.0.5:1234/", "http://10.0.0.5:1234/v1",
-                  "http://10.0.0.5:1234/v1/chat/completions"):
+    lms = "http://10.0.0.5:1234/api/v0/chat/completions"
+    oai = "http://10.0.0.5:1234/v1/chat/completions"
+    for given, want in [("http://10.0.0.5:1234", lms), ("http://10.0.0.5:1234/", lms),
+                        ("http://10.0.0.5:1234/api/v0", lms), ("http://10.0.0.5:1234/v1", oai),
+                        (oai, oai)]:
         monkeypatch.setenv("LOCAL_LLM_URL", given)
-        assert local_chat_url() == "http://10.0.0.5:1234/v1/chat/completions"
+        assert local_chat_url() == want, given
+
+
+def test_local_reasoning_level_is_sent_the_way_lm_studio_reads_it(monkeypatch):
+    import jevbench.client as client
+    from jevbench.questions import monolithic
+
+    sent = {}
+
+    def fake_post(url, body, timeout=30.0, retries=3, local=False):
+        sent.update(body)
+        return ({"choices": [{"message": {"content": '{"verdict": {"choice": "nta", "confidence": 0.9}}'}}],
+                 "usage": {"prompt_tokens": 1, "completion_tokens": 1}}, 0.1, 1)
+
+    monkeypatch.setattr(client, "_post", fake_post)
+    client.ask("a post", monolithic(), "local/qwen#none")
+    assert sent["reasoning_effort"] == "none" and "reasoning" not in sent
+    assert sent["model"] == "qwen"
+    assert "/no_think" not in sent["messages"][0]["content"]

@@ -33,13 +33,20 @@ LOCAL_PREFIX = "local/"
 def local_chat_url() -> str:
     """LOCAL_LLM_URL as a full endpoint; a bare `http://host:1234` is fine too.
 
+    A bare host goes to LM Studio's own /api/v0 endpoint rather than the
+    OpenAI-compatible /v1 one: same request and answer, but it also reports
+    tokens per second, time to first token, quantisation and runtime. Give a
+    /v1 URL explicitly for any other OpenAI-compatible server.
+
     Read per call, not at import, so it can be pointed at another machine
     without restarting anything.
     """
     base = os.environ.get("LOCAL_LLM_URL", "http://localhost:1234").rstrip("/")
     if base.endswith("/chat/completions"):
         return base
-    return base + ("/chat/completions" if base.endswith("/v1") else "/v1/chat/completions")
+    if base.endswith(("/v1", "/api/v0")):
+        return base + "/chat/completions"
+    return base + "/api/v0/chat/completions"
 
 # $/M tokens. Jev bills output at zero; that asymmetry is the finding to test.
 PRICING = {
@@ -380,10 +387,12 @@ def ask_llm(text: str, questions: dict[str, dict], model: str) -> Answer:
         # field, and a 27B model on a laptop needs far more than 30 s.
         body["model"] = base[len(LOCAL_PREFIX):]
         del body["reasoning"]
-        if effort == "nothink":
-            # Qwen-family switch. Without it a thinking model spends most of
-            # each request reasoning, and the run takes hours instead of minutes.
-            body["messages"][0]["content"] += "\n\n/no_think"
+        if effort:
+            # LM Studio honours the top-level OpenAI field and ignores both the
+            # OpenRouter-style `reasoning` object and Qwen's /no_think. Measured
+            # on qwen3.6-35b-a3b: "none" 0 reasoning tokens and ~1 s a post,
+            # "low" ~1,400 tokens and ~17 s.
+            body["reasoning_effort"] = effort
         data, dt, tries = _post(local_chat_url(), body, timeout=600.0, local=True)
     else:
         data, dt, tries = _post(CHAT_URL, body)

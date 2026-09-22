@@ -24,7 +24,7 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from .client import LOCAL_PREFIX, PRICING, ApiError, FatalApiError, ask
+from .client import LOCAL_PREFIX, PRICING, ApiError, FatalApiError, ask, local_chat_url
 from .data import DATASET, Item, load_or_fetch
 from .questions import decomposed, full, monolithic
 
@@ -39,6 +39,20 @@ ARMS = {"monolithic": monolithic, "decomposed": decomposed, "full": full}
 DEFAULT_MODELS = ["~typesafe/jev-latest", "openai/gpt-5-nano"]
 
 BUDGET_STOP = "budget reached"
+
+
+def _host() -> dict:
+    """The machine a local model ran on. macOS only; empty elsewhere."""
+    def sysctl(key: str) -> str:
+        try:
+            return subprocess.run(["sysctl", "-n", key], capture_output=True,
+                                  text=True, timeout=5).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return ""
+    mem = sysctl("hw.memsize")
+    return {"cpu": sysctl("machdep.cpu.brand_string"),
+            "ram_gb": round(int(mem) / 2**30) if mem.isdigit() else None,
+            "model": sysctl("hw.model")}
 
 
 def _git_sha() -> str:
@@ -76,6 +90,15 @@ def _record(model: str, arm: str, item: Item, a, questions: dict) -> dict:
         "prompt_tokens": a.prompt_tokens,
         "completion_tokens": a.completion_tokens,
         "total_tokens": a.total_tokens,
+        # Thinking a model did before answering. Billed as output but never
+        # shown, so it is the hidden part of both latency and cost.
+        "reasoning_tokens": ((a.raw.get("usage") or {})
+                             .get("completion_tokens_details") or {}).get("reasoning_tokens"),
+        # Reported only by LM Studio's /api/v0 endpoint, null elsewhere.
+        "tokens_per_second": (a.raw.get("stats") or {}).get("tokens_per_second"),
+        "time_to_first_token_s": (a.raw.get("stats") or {}).get("time_to_first_token"),
+        "model_info": a.raw.get("model_info"),
+        "runtime": (a.raw.get("runtime") or {}).get("name"),
         "cost_usd": a.cost_usd,
         "billed_usd": a.billed_usd,
         "provider": str(a.raw.get("provider", "")),
@@ -211,6 +234,9 @@ def main() -> int:
         "seed": args.seed,
         "verdict_mix": dict(mix),
         "models": args.models,
+        # Only meaningful for local models, where the hardware is the result.
+        **({"local_server": local_chat_url(), "host": _host()}
+           if any(m.startswith(LOCAL_PREFIX) for m in args.models) else {}),
         "arms": args.arms,
         "questions_per_arm": {a: len(ARMS[a]()) for a in args.arms},
         "pricing_usd_per_mtok": {m: PRICING.get(m) for m in args.models},
