@@ -73,7 +73,7 @@ def show(item: Item, model: str, width: int = 88, full_text: bool = False) -> bo
     composed = compose_verdict(a.probs)
     truth = item.verdict
 
-    print(f"\n{BOLD}  The model's reasoning{RESET}  {DIM}(8 atomic questions, one call){RESET}")
+    print(f"\n{BOLD}  The model's reasoning{RESET}  {DIM}(8 yes/no questions, one call){RESET}")
     for qid, p in sorted(a.probs.items(), key=lambda kv: -kv[1]):
         color = RED if p >= 0.5 else DIM
         print(f"    {color}{_bar(p)}{RESET} {p:4.0%}  {qid}")
@@ -88,9 +88,9 @@ def show(item: Item, model: str, width: int = 88, full_text: bool = False) -> bo
 
     print(f"\n{BOLD}  Verdicts{RESET}")
     print(f"    Reddit said           {BOLD}{CYAN}{truth.upper()}{RESET}  {DIM}{VERDICTS[truth]}{RESET}")
-    print(f"    Model, asked directly {tag(direct.choice)}  "
+    print(f"    Asked directly        {tag(direct.choice)}  "
           f"{DIM}confidence {direct.confidence:.0%}{RESET}")
-    print(f"    Composed in code      {tag(composed)}  "
+    print(f"    Worked out in code    {tag(composed)}  "
           f"{DIM}from the 8 answers above{RESET}")
 
     if direct.probabilities:

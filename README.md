@@ -36,6 +36,97 @@ of people said yes (say, 6 out of 10), so it can check whether Jev's "60% sure" 
 
 2,400 requests in total, and the whole thing cost **$0.22**.
 
+## How Jev works
+
+Talking to Jev is different from chatting with GPT. There's no conversation. Each request has two
+parts: the **situation** (here, the Reddit post) and a list of **questions** about it. Jev
+answers every question at the same time and sends back numbers instead of sentences.
+
+There are three kinds of question:
+
+| Type | You ask | You get back |
+|---|---|---|
+| **Noul** | a yes/no question | how likely "yes" is, e.g. `0.74` |
+| **Choice** | pick one option from a list | the pick, the odds for each option, and how confident it is |
+| **Score** | where this falls on a scale you describe | a position on the scale, plus confidence |
+
+For each post I asked 10 questions in one request, using all three types:
+
+| Question | Type | In plain words |
+|---|---|---|
+| `op_broke_agreement` | noul | Did the poster break a promise? |
+| `op_disproportionate` | noul | Did the poster overreact? |
+| `op_disregarded` | noul | Did the poster ignore someone's clearly stated wishes? |
+| `op_deceived` | noul | Did the poster lie or hide something? |
+| `other_behaved_badly` | noul | Did the other person behave badly? |
+| `other_escalated` | noul | Did the other person make it worse? |
+| `stakes_high` | noul | Is something serious at stake (money, housing, a relationship)? |
+| `op_omits` | noul | Is the poster probably leaving out details that make them look bad? |
+| `verdict` | choice | YTA, NTA, ESH or NAH? |
+| `severity` | score | How wrong was the poster, from "blameless" to "caused real harm"? |
+
+Each question also comes with a short description of what "yes" and "no" mean, so Jev knows
+where the line is. None of the 8 small questions mention Reddit or verdicts, and a test checks
+that. They only ask about what happened.
+
+That gave me two ways to reach a verdict from the same request:
+
+1. **Ask directly**: just read the answer to the `verdict` question.
+2. **Work it out myself**: take the 8 yes/no answers and apply a simple rule. If the poster did
+   something wrong and the other person didn't, it's YTA. If only the other person did, NTA.
+   Both, ESH. Neither, NAH.
+
+TypeSafe's docs recommend the second approach. Testing whether that advice actually helps was
+one of the main reasons I built this.
+
+## What it looks like
+
+A real answer from the benchmark, and one of my favourites because Jev disagrees with Reddit
+and you can see why:
+
+```
+aita for standing my ground?
+  r/AmItheAsshole · 11 points
+
+  i (26f) have been with my (27m) partner for almost 3 years ... he wishes to name a son
+  first name his grandfathers name middle name his name. i think it is sweet he wants to
+  honor the family names but i hate that idea ...
+
+  The model's reasoning  (8 yes/no questions, one call)
+    █████████████·····  74%  stakes_high
+    ████████··········  47%  op_omits
+    ██████············  35%  op_disregarded
+    ████··············  21%  op_disproportionate
+    ███···············  18%  other_escalated
+    ███···············  16%  other_behaved_badly
+    █·················   7%  op_broke_agreement
+    █·················   6%  op_deceived
+
+    severity 8% (confidence 76%)
+
+  Verdicts
+    Reddit said           NTA
+    Asked directly        NAH   confidence 32%
+    Worked out in code    NAH   from the 8 answers above
+    distribution: NAH 48%  NTA 47%  YTA 4%  ESH 1%
+
+  Top comment on Reddit
+    nta. naming a child is for both parents to do and is a one vote no / two votes
+    yes system. he cannot unilaterally pick the names ...
+
+  → disagrees with Reddit
+```
+
+Reddit sided with the poster. Jev says **nobody** is the asshole, and you can follow its
+reasoning. It thinks the stakes are high (74%), but it doesn't think the boyfriend behaved
+badly (16%) or that the poster did (every "did the poster…" answer is under 50%). No baby exists
+yet, and he only *wants* a name. That's a disagreement, not bad behaviour.
+
+It also told us it wasn't sure: 48% NAH against 47% NTA, with a confidence of 32%. That matters.
+In a real system this is the kind of answer you'd pass to a person instead of trusting it.
+
+The whole thing took **0.43 seconds** and cost a fraction of a cent.
+
 ## Results
 
 ### Jev vs gpt-5-nano, same 200 posts
@@ -107,28 +198,7 @@ cp .env.example .env        # paste your key in
 python -m jevbench.demo -n 3
 ```
 
-You'll see the post, Jev's reasoning, its verdict next to Reddit's, and Reddit's top comment,
-so you can decide who you agree with. This is a real answer from the benchmark log: Jev agrees
-with Reddit here but isn't sure, and says so.
-
-```
-aita for buying my younger cousins a year of disney+ for their christmas?
-
-  The model's reasoning
-    ████████████████··  90%  other_escalated
-    ██████████████····  80%  stakes_high
-    █████████████·····  73%  op_omits
-    ████████████······  68%  other_behaved_badly
-    ██████████········  56%  op_disregarded
-
-  Reddit said   NTA
-  Jev said      NTA   confidence 29%
-                      NTA 46% · YTA 32% · ESH 20% · NAH 2%
-
-  Top comment on Reddit
-    nta. aunt and uncle need to parent their children, and asking
-    for more gifts is incredibly rude and entitled of them
-```
+You'll see output like the example above for each post.
 
 To rerun the whole benchmark: `./run.sh` (it shows the cost and asks before spending anything).
 
