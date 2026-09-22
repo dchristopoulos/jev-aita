@@ -157,7 +157,7 @@ def baseline_accuracy(recs: list[dict]) -> float:
 
 
 def headline_table(groups: dict[tuple[str, str], list[dict]]) -> str:
-    head = ("| Model | Arm | Q/call | Verdict accuracy | vs. always-NTA | Confidence ECE ↓ "
+    head = ("| Model | Arm | Q/call | Verdict accuracy | vs. majority verdict | Confidence ECE ↓ "
             "| ECE support | p50 | p95 | $/1k posts | Unparseable |\n"
             "|---|---|---|---|---|---|---|---|---|---|---|\n")
     rows = []
