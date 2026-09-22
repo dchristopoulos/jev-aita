@@ -25,10 +25,21 @@ UNPARSED_CHOICE = "__unparsed__"
 
 DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions"
 CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
-# Any OpenAI-compatible server on this machine (LM Studio's default port).
-# Models are named `local/<id>` so they get their own rows and cost nothing.
-LOCAL_URL = os.environ.get("LOCAL_LLM_URL", "http://localhost:1234/v1/chat/completions")
+# Any OpenAI-compatible server, LM Studio by default. Models are named
+# `local/<id>` so they get their own rows and cost nothing.
 LOCAL_PREFIX = "local/"
+
+
+def local_chat_url() -> str:
+    """LOCAL_LLM_URL as a full endpoint; a bare `http://host:1234` is fine too.
+
+    Read per call, not at import, so it can be pointed at another machine
+    without restarting anything.
+    """
+    base = os.environ.get("LOCAL_LLM_URL", "http://localhost:1234").rstrip("/")
+    if base.endswith("/chat/completions"):
+        return base
+    return base + ("/chat/completions" if base.endswith("/v1") else "/v1/chat/completions")
 
 # $/M tokens. Jev bills output at zero; that asymmetry is the finding to test.
 PRICING = {
@@ -144,14 +155,13 @@ class Answer:
 
 
 def _post(url: str, body: dict, timeout: float = 30.0,
-          retries: int = 3) -> tuple[dict, float, int]:
+          retries: int = 3, local: bool = False) -> tuple[dict, float, int]:
     """POST with retry on 429/5xx. Returns (json, wall_seconds, attempts).
 
     Latency is measured around the HTTP call only, so it is comparable across
     models. A retried call reports the successful attempt's latency; including
     backoff sleep would misrepresent steady-state latency.
     """
-    local = url == LOCAL_URL
     key = "" if local else api_key()
     if not local and "REPLACE-ME" in key:
         raise FatalApiError(
@@ -370,7 +380,11 @@ def ask_llm(text: str, questions: dict[str, dict], model: str) -> Answer:
         # field, and a 27B model on a laptop needs far more than 30 s.
         body["model"] = base[len(LOCAL_PREFIX):]
         del body["reasoning"]
-        data, dt, tries = _post(LOCAL_URL, body, timeout=600.0)
+        if effort == "nothink":
+            # Qwen-family switch. Without it a thinking model spends most of
+            # each request reasoning, and the run takes hours instead of minutes.
+            body["messages"][0]["content"] += "\n\n/no_think"
+        data, dt, tries = _post(local_chat_url(), body, timeout=600.0, local=True)
     else:
         data, dt, tries = _post(CHAT_URL, body)
     prompt_tok, completion_tok, billed = read_usage(data)

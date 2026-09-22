@@ -24,7 +24,7 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from .client import PRICING, ApiError, FatalApiError, ask
+from .client import LOCAL_PREFIX, PRICING, ApiError, FatalApiError, ask
 from .data import DATASET, Item, load_or_fetch
 from .questions import decomposed, full, monolithic
 
@@ -125,6 +125,13 @@ def run(models: list[str], arms: list[str], items: list[Item], out: Path,
 
     with out.open("w") as fh:
         for model in models:
+            if model.startswith(LOCAL_PREFIX) and items:
+                # The first request makes the server load the model into memory,
+                # which can take a minute. Timed like the rest it would land in
+                # the latency percentiles, so it is sent once, untimed, unlogged.
+                t0 = time.time()
+                ask(items[0].body, ARMS[arms[0]](), model)
+                print(f"\n{model}  loaded and warm in {time.time() - t0:.1f}s", file=sys.stderr)
             for arm in arms:
                 questions = ARMS[arm]()
                 print(f"\n{model}  [{arm}: {len(questions)}q]", file=sys.stderr)

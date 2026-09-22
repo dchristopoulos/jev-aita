@@ -169,6 +169,8 @@ def test_reasoning_variant_is_parsed_but_kept_in_the_label():
 
 def test_local_model_needs_no_key_and_hits_the_local_server(monkeypatch):
     import jevbench.client as client
+
+    monkeypatch.delenv("LOCAL_LLM_URL", raising=False)
     from jevbench.questions import monolithic
 
     monkeypatch.setattr(client, "api_key", lambda: (_ for _ in ()).throw(
@@ -189,8 +191,16 @@ def test_local_model_needs_no_key_and_hits_the_local_server(monkeypatch):
 
     monkeypatch.setattr(client.urllib.request, "urlopen", fake_urlopen)
     a = client.ask("a post", monolithic(), "local/qwen-27b")
-    assert seen["url"] == client.LOCAL_URL and seen["auth"] is None
+    assert seen["url"] == "http://localhost:1234/v1/chat/completions" and seen["auth"] is None
     assert seen["body"]["model"] == "qwen-27b" and "reasoning" not in seen["body"]
     assert seen["timeout"] >= 300
     assert a.model == "local/qwen-27b" and a.cost_usd == 0.0
     assert a.choices["verdict"].choice == "nta"
+
+
+def test_local_url_accepts_a_bare_host(monkeypatch):
+    from jevbench.client import local_chat_url
+    for given in ("http://10.0.0.5:1234", "http://10.0.0.5:1234/", "http://10.0.0.5:1234/v1",
+                  "http://10.0.0.5:1234/v1/chat/completions"):
+        monkeypatch.setenv("LOCAL_LLM_URL", given)
+        assert local_chat_url() == "http://10.0.0.5:1234/v1/chat/completions"
