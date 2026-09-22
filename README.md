@@ -10,7 +10,8 @@ situation and a few questions, and it answers each one with a probability: *yes,
 TypeSafe, the company behind it, calls it a "System One" model (fast, gut-feeling judgments)
 and says it's **40–200× faster and cheaper** than a normal LLM at this kind of work.
 
-That's a big claim, so I wanted to see for myself.
+That's a big claim, so I wanted to see for myself. I gave myself a $3 budget and picked
+r/AmItheAsshole because I wanted a test that's actually fun to read through.
 
 ## What I did
 
@@ -26,7 +27,7 @@ post ends in one of four verdicts:
 | **ESH** | everyone sucks here |
 | **NAH** | no assholes here |
 
-I took 200 real posts, showed each one to Jev and to OpenAI's cheapest model (`gpt-5-nano`),
+I took 200 real posts and, through [OpenRouter](https://openrouter.ai), showed each one to Jev and to OpenAI's cheapest model (`gpt-5-nano`),
 and compared their verdicts with what Reddit decided. The models only ever saw the post itself,
 never the votes or the comments.
 
@@ -180,6 +181,17 @@ for combining them threw most of it away.
 **The cost claim didn't hold up.** 40–200× might be true against big models, but I only tested
 a small, cheap one, and against that it's about 1.2×. It's still cheaper, just not by the amount
 in the headline.
+
+## Can it do better?
+
+Yes, very likely. These are the results for one setup, and most of it can be tuned:
+
+- **The rule that combines the 8 answers.** Mine was simple and lost information. A small trained model on the same answers already got 51.5% instead of 41.5%.
+- **The question wording.** Small changes to how a question is phrased change the answers.
+- **Calibration.** Two numbers fitted on 150 examples already fixed most of the over-confidence.
+- **The confidence cut-off.** Where you set it decides how much Jev handles alone and how accurate that part is.
+
+So read the numbers as a starting point, not a ceiling.
 
 ## Try it
 
