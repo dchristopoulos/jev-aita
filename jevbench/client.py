@@ -8,6 +8,7 @@ probabilities, while an LLM has to be coaxed into emitting them and can refuse.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import time
@@ -54,8 +55,6 @@ PRICING = {
     "openai/gpt-5-nano#minimal": (0.025, 0.20),
     "openai/gpt-5-nano": (0.025, 0.20),
     "anthropic/claude-sonnet-5": (2.0, 10.0),
-    "google/gemini-3.5-flash": (1.5, 9.0),
-    "google/gemini-3.5-flash#minimal": (1.5, 9.0),
 }
 
 
@@ -96,14 +95,6 @@ class ChoiceAns:
     confidence: float
 
 
-@dataclass
-class ScoreAns:
-    position: float                   # normalised to [0,1] across the levels
-    raw_score: float
-    probabilities: dict[str, float]
-    confidence: float
-
-
 def read_usage(data: dict) -> tuple[int, int, float]:
     """(prompt, completion, billed_usd) from a response, whichever names it uses.
 
@@ -128,7 +119,6 @@ class Answer:
 
     probs: dict[str, float]      # noul id -> probability in [0,1]
     choices: dict[str, ChoiceAns]
-    scores: dict[str, ScoreAns]
     model: str
     latency_s: float
     prompt_tokens: int
@@ -146,12 +136,6 @@ class Answer:
         return self.prompt_tokens + self.completion_tokens
 
     @property
-    def all_confidence(self) -> dict[str, float]:
-        """Real confidence, available only for Choice and Score."""
-        return {**{k: v.confidence for k, v in self.choices.items()},
-                **{k: v.confidence for k, v in self.scores.items()}}
-
-    @property
     def cost_usd(self) -> float:
         """What this request cost: the provider's own figure when it gives one."""
         if self.billed_usd:
@@ -164,12 +148,7 @@ class Answer:
 
 def _post(url: str, body: dict, timeout: float = 30.0,
           retries: int = 3, local: bool = False) -> tuple[dict, float, int]:
-    """POST with retry on 429/5xx. Returns (json, wall_seconds, attempts).
-
-    Latency is measured around the HTTP call only, so it is comparable across
-    models. A retried call reports the successful attempt's latency; including
-    backoff sleep would misrepresent steady-state latency.
-    """
+    """POST with retry on 429/5xx. Returns response, total wait, attempts."""
     key = "" if local else api_key()
     if not local and "REPLACE-ME" in key:
         raise FatalApiError(
@@ -189,11 +168,11 @@ def _post(url: str, body: dict, timeout: float = 30.0,
                  **({"Authorization": f"Bearer {key}"} if key else {})},
     )
     last = None
+    started = time.perf_counter()
     for attempt in range(retries):
-        t0 = time.perf_counter()
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.load(r), time.perf_counter() - t0, attempt + 1
+                return json.load(r), time.perf_counter() - started, attempt + 1
         except urllib.error.HTTPError as e:
             detail = e.read().decode(errors="replace")[:300]
             if e.code in (429, 500, 502, 503, 504) and attempt < retries - 1:
@@ -224,14 +203,13 @@ def ask_jev(text: str, questions: dict[str, dict], model: str = "~typesafe/jev-l
     data, dt, tries = _post(
         DECISIONS_URL, {"model": model, "state": text, "questions": questions})
     try:
-        probs, choices, scores = _split_answers(data["answers"], questions)
+        probs, choices = _split_answers(data["answers"], questions)
     except (KeyError, TypeError, ValueError) as e:
         raise ApiError(f"Unexpected Decisions response: {json.dumps(data)[:300]}") from e
     prompt_tok, completion_tok, billed = read_usage(data)
     return Answer(
         probs=probs,
         choices=choices,
-        scores=scores,
         model=model,
         latency_s=dt,
         prompt_tokens=prompt_tok,
@@ -245,53 +223,12 @@ def ask_jev(text: str, questions: dict[str, dict], model: str = "~typesafe/jev-l
     )
 
 
-def normalise_score(raw: float, legend: dict | list | None, n_levels: int) -> float:
-    """Map a Score onto [0,1] across its levels.
-
-    `legend` repeats the levels by number, but the docs do not pin whether
-    numbering starts at 0 or 1, and a score may fall *between* two levels. Use
-    the legend when it carries numbers; otherwise assume 1..n.
-
-    That assumption is not guessed at per call on purpose. Indexing is a
-    property of the API, not of one answer, so inferring it from whether a
-    single score happened to fall below 1.0 would scale some answers in a run
-    differently from others. `raw_score` is kept in the run log and
-    `jevbench.report` re-derives the convention once, across every score it
-    saw. This value is the best guess for live use, such as the demo.
-    """
-    lo, hi = 1.0, float(n_levels)
-    nums = _legend_numbers(legend)
-    if nums:
-        lo, hi = min(nums), max(nums)
-    if hi <= lo:
-        return 0.0
-    return min(max((float(raw) - lo) / (hi - lo), 0.0), 1.0)
-
-
-def _legend_numbers(legend: dict | list | None) -> list[float]:
-    """Level numbers from a legend, whichever side of it they are on.
-
-    The docs say `legend` "repeats the levels by number" but do not pin the
-    shape, so accept {number: label} and {label: number}, and give up rather
-    than guess when neither side is numeric.
-    """
-    if not isinstance(legend, dict) or not legend:
-        return []
-    for side in (legend.keys(), legend.values()):
-        try:
-            return [float(x) for x in side]
-        except (TypeError, ValueError):
-            continue
-    return []
-
-
 def _split_answers(
     answers: dict, questions: dict[str, dict]
-) -> tuple[dict[str, float], dict[str, ChoiceAns], dict[str, ScoreAns]]:
+) -> tuple[dict[str, float], dict[str, ChoiceAns]]:
     """Pull each answer out by the type we asked for, not by guessing."""
     probs: dict[str, float] = {}
     choices: dict[str, ChoiceAns] = {}
-    scores: dict[str, ScoreAns] = {}
     for qid, q in questions.items():
         a = answers[qid]
         if q["type"] == "noul":
@@ -302,50 +239,44 @@ def _split_answers(
                 probabilities={str(k): float(v) for k, v in a.get("probabilities", {}).items()},
                 confidence=float(a["confidence"]),
             )
-        elif q["type"] == "score":
-            scores[qid] = ScoreAns(
-                position=normalise_score(a["score"], a.get("legend"), len(q["criteria"])),
-                raw_score=float(a["score"]),
-                probabilities={str(k): float(v) for k, v in a.get("probabilities", {}).items()},
-                confidence=float(a["confidence"]),
-            )
         else:
             raise ValueError(f"unknown question type {q['type']!r}")
-    return probs, choices, scores
+    return probs, choices
 
 
-def _llm_prompt(questions: dict[str, dict]) -> str:
-    """Ask a chat model for the same judgments, as strict JSON.
-
-    The fairest available framing: one call, same state, all questions, so the
-    LLM gets the same batching advantage Jev gets. Confidence has to be
-    self-reported, which is precisely the asymmetry under test -- Jev derives
-    it from a real distribution, an LLM is guessing at its own certainty.
-    """
-    lines = []
-    for qid, q in questions.items():
-        if q["type"] == "noul":
-            lines.append(f'  "{qid}": <probability 0.00-1.00>,   // {q["instructions"]}')
-        elif q["type"] == "choice":
-            opts = "|".join(q["criteria"])
-            lines.append(
-                f'  "{qid}": {{"choice": "<{opts}>", "confidence": <0.00-1.00>}},   '
-                f'// {q["instructions"]}'
-            )
-        else:
-            n = len(q["criteria"])
-            levels = "; ".join(f"{i+1}={lvl}" for i, lvl in enumerate(q["criteria"]))
-            lines.append(
-                f'  "{qid}": {{"level": <1-{n}, may be fractional>, "confidence": <0.00-1.00>}},   '
-                f'// {q["instructions"]} Levels: {levels}'
-            )
+def production_verdict_prompt(question: dict) -> str:
+    """A normal four-class classifier prompt for the chat baselines."""
+    labels = "\n".join(f"{code.upper()}: {meaning}" for code, meaning in question["criteria"].items())
     return (
-        "For the comment below, answer every question about how a majority of human "
-        "readers would judge it.\n"
-        "Reply with ONLY a JSON object, no prose, no code fence:\n{\n"
-        + "\n".join(lines).rstrip(",")
-        + "\n}\n\nComment:\n{text}"
+        "Predict the official r/AmItheAsshole post flair from the title and post text. "
+        "Predict the community outcome, not your personal moral judgment. "
+        "Use only the supplied text.\n\n"
+        f"Labels:\n{labels}\n\n"
+        "Return only a JSON object with a verdict field containing the probability "
+        "of each label: {\"verdict\": {\"yta\": 0.0, \"nta\": 0.0, "
+        "\"esh\": 0.0, \"nah\": 0.0}}. The four probabilities must sum to 1."
     )
+
+
+def standard_choice_prompt(question: dict) -> str:
+    labels = "\n".join(f"{n}. {code.upper()}: {meaning}"
+                       for n, (code, meaning) in enumerate(question["criteria"].items(), 1))
+    return (
+        "You are an experienced r/AmItheAsshole reader. Read the title and post, "
+        "then predict the official verdict the community would assign, not your "
+        "personal moral judgment. Use only the supplied text.\n\n"
+        f"Choose one:\n{labels}\n\nReply with only its number (1, 2, 3, or 4)."
+    )
+
+
+def _parse_standard_choice(content: str, question: dict) -> ChoiceAns:
+    labels = list(question["criteria"])
+    match = re.match(r"^\s*([1-4]|YTA|NTA|ESH|NAH)(?=\W|$)", content, re.I)
+    token = match.group(1).lower() if match else ""
+    choice = labels[int(token) - 1] if token in {"1", "2", "3", "4"} else token
+    if choice not in labels:
+        choice = UNPARSED_CHOICE
+    return ChoiceAns(choice, {}, 0.0)
 
 
 def split_variant(model: str) -> tuple[str, str]:
@@ -360,18 +291,25 @@ def split_variant(model: str) -> tuple[str, str]:
     return base, effort
 
 
-def ask_llm(text: str, questions: dict[str, dict], model: str) -> Answer:
-    """Same questions to a chat model, which must be asked to *emit* the answers.
+def ask_llm(text: str, questions: dict[str, dict], model: str,
+            label_only: bool = False) -> Answer:
+    """The verdict question to a chat model, which must be asked to *emit* an answer.
 
     Parse failures are recorded rather than retried: an LLM that returns prose
     or refuses is a real cost of using a text model for a typed job, and
     retrying until it complies would flatter the baseline.
     """
+    if set(questions) != {"verdict"} or questions["verdict"]["type"] != "choice":
+        raise ValueError("chat models answer only the direct verdict question")
     base, effort = split_variant(model)
-    prompt = _llm_prompt(questions).replace("{text}", text)
+    verdict = questions["verdict"]
+    system_prompt = (standard_choice_prompt(verdict) if label_only
+                     else production_verdict_prompt(verdict))
+    messages = [{"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Title and post:\n{text}"}]
     body = {
         "model": base,
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": messages,
         "temperature": 0,
         # Generous on purpose. Reasoning models spend this budget *before*
         # emitting anything, so a tight cap produces finish_reason="length"
@@ -403,11 +341,11 @@ def ask_llm(text: str, questions: dict[str, dict], model: str) -> Answer:
     except (KeyError, IndexError, TypeError) as e:
         raise ApiError(f"Unexpected chat response: {json.dumps(data)[:300]}") from e
 
-    probs, choices, scores, failed = _parse_llm(content or "", questions)
+    parse = _parse_standard_choice if label_only else _parse_distribution
+    answer = parse(content or "", verdict)
     return Answer(
-        probs=probs,
-        choices=choices,
-        scores=scores,
+        probs={},
+        choices={"verdict": answer},
         model=model,
         latency_s=dt,
         prompt_tokens=prompt_tok,
@@ -415,87 +353,43 @@ def ask_llm(text: str, questions: dict[str, dict], model: str) -> Answer:
         billed_usd=billed,
         n_questions=len(questions),
         raw=data,
-        parse_failed=failed,
+        parse_failed=answer.choice == UNPARSED_CHOICE,
         attempts=tries,
         resolved_model=str(data.get("model", "")),
         request_id=str(data.get("id", "")),
     )
 
 
-def _parse_llm(
-    content: str, questions: dict[str, dict]
-) -> tuple[dict[str, float], dict[str, ChoiceAns], dict[str, ScoreAns], bool]:
-    """Recover typed answers from an LLM reply.
+def _parse_distribution(content: str, question: dict) -> ChoiceAns:
+    """Read `{"verdict": {"yta": p, ...}}` from a reply; anything else is unparsed.
 
-    Anything missing or unusable falls back to a neutral default and sets the
-    failure flag, so the report can count how often this happened rather than
-    silently scoring a refusal as a confident answer. Jev cannot fail this way;
-    that asymmetry is the structural argument for a typed model.
+    Four finite nonnegative numbers with a positive sum are accepted and
+    rescaled to sum to 1, since chat models sometimes return relative weights
+    such as 0.1, 0.85, 0.1, 0.05. A missing label, a non-number or an all-zero
+    vector is a failure and counts against the model.
     """
-    obj = {}
+    opts = list(question["criteria"])
     m = re.search(r"\{.*\}", content, re.S)   # tolerate code fences and stray prose
-    if m:
-        try:
-            obj = json.loads(m.group(0))
-        except json.JSONDecodeError:
-            obj = {}
-
-    probs: dict[str, float] = {}
-    choices: dict[str, ChoiceAns] = {}
-    scores: dict[str, ScoreAns] = {}
-    failed = False
-
-    for qid, q in questions.items():
-        v = obj.get(qid)
-        if q["type"] == "noul":
-            try:
-                f = float(v)
-            except (TypeError, ValueError):
-                probs[qid], failed = 0.5, True
-                continue
-            if not 0.0 <= f <= 1.0:
-                failed = True
-            probs[qid] = min(max(f, 0.0), 1.0)
-
-        elif q["type"] == "choice":
-            opts = list(q["criteria"])
-            pick = v.get("choice") if isinstance(v, dict) else v
-            conf = _conf(v)
-            if pick not in opts:
-                # Hallucinated an option outside the list -- something Jev's
-                # constrained output makes impossible.
-                pick, conf, failed = UNPARSED_CHOICE, 0.0, True
-            choices[qid] = ChoiceAns(choice=str(pick), probabilities={}, confidence=conf)
-
-        else:
-            n = len(q["criteria"])
-            lvl = v.get("level") if isinstance(v, dict) else v
-            try:
-                raw = float(lvl)
-            except (TypeError, ValueError):
-                raw, failed = (n + 1) / 2, True
-            scores[qid] = ScoreAns(
-                position=normalise_score(raw, None, n),
-                raw_score=raw,
-                probabilities={},
-                confidence=_conf(v),
-            )
-
-    return probs, choices, scores, failed
-
-
-def _conf(v: object) -> float:
-    """Self-reported confidence, defaulting to 0.5 when absent or unusable."""
-    if not isinstance(v, dict):
-        return 0.5
     try:
-        return min(max(float(v.get("confidence", 0.5)), 0.0), 1.0)
-    except (TypeError, ValueError):
-        return 0.5
+        v = json.loads(m.group(0)).get("verdict") if m else None
+        dist = v.get("probabilities", v) if isinstance(v, dict) else None
+        if isinstance(dist, dict) and set(dist) == set(opts):
+            ps = {k: float(dist[k]) for k in opts}
+            total = sum(ps.values())
+            if all(math.isfinite(p) and p >= 0 for p in ps.values()) and total > 0:
+                ps = {k: p / total for k, p in ps.items()}
+                pick = max(opts, key=ps.get)
+                return ChoiceAns(pick, ps, ps[pick])
+    except (json.JSONDecodeError, AttributeError, TypeError, ValueError):
+        pass
+    return ChoiceAns(UNPARSED_CHOICE, {}, 0.0)
 
 
-def ask(text: str, questions: dict[str, dict], model: str) -> Answer:
+def ask(text: str, questions: dict[str, dict], model: str,
+        label_only: bool = False) -> Answer:
     """Dispatch on model family so the runner treats every arm identically."""
     if model.startswith("~typesafe/"):
+        if label_only:
+            raise ValueError("label-only prompting is for chat models")
         return ask_jev(text, questions, model)
-    return ask_llm(text, questions, model)   # label keeps any #effort variant
+    return ask_llm(text, questions, model, label_only=label_only)

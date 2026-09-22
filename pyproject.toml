@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jev-bench"
 version = "0.1.0"
-description = "Is Jev actually calibrated? Measuring TypeSafe's System One model against LLM baselines on r/AmItheAsshole verdicts."
+description = "Benchmark of TypeSafe's Jev against chat LLMs on 2025 Reddit AITA verdicts: probability scores, latency and billed cost."
 requires-python = ">=3.10"
 dependencies = []
 

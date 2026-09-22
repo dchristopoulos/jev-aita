@@ -9,14 +9,16 @@ Failures are recorded, not just printed. A run where Sonnet times out on 20% of
 posts is a different result from a clean run, and a log that silently omits them
 looks identical to one that never hit them.
 
-The manifest pins everything needed to interpret the numbers later: seed,
-dataset, price list, git commit, wall time, totals. Prices change and models
+The manifest pins everything needed to interpret the numbers later: sample
+hash, git commit and whether the tree was dirty, the exact prompt text, price
+list, wall time, totals. Prices change and models
 move behind `-latest`; a run log without them is uninterpretable in six months.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -24,15 +26,18 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from .client import LOCAL_PREFIX, PRICING, ApiError, FatalApiError, ask, local_chat_url
-from .data import DATASET, Item, load_or_fetch
-from .questions import decomposed, full, monolithic
+from .client import (LOCAL_PREFIX, PRICING, ApiError, FatalApiError, production_verdict_prompt,
+                     standard_choice_prompt, ask, local_chat_url)
+from .data import Item, load
+from .questions import balanced, monolithic
+from .sample_2025 import DATASET, REVISION
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "data" / "sample.jsonl"
+DATA = ROOT / "data" / "final-ucb-2025.jsonl"
 RUNS = ROOT / "runs"
 
-ARMS = {"monolithic": monolithic, "decomposed": decomposed, "full": full}
+# standard_choice is the chat-only single-label check; see docs/FINAL_PROTOCOL.md.
+ARMS = {"monolithic": monolithic, "balanced": balanced, "standard_choice": monolithic}
 # Cheap by default. Jev bills $0.042/M in and nothing out; gpt-5-nano is the
 # baseline that makes the cost claim awkward, which is the point of having it.
 # A frontier model costs ~50x the whole rest of the run -- opt in with --models.
@@ -55,13 +60,25 @@ def _host() -> dict:
             "model": sysctl("hw.model")}
 
 
-def _git_sha() -> str:
-    """Which version of the questions produced these numbers."""
+def _git(*args: str) -> str:
     try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
-                              capture_output=True, text=True, timeout=5).stdout.strip()
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True,
+                              text=True, timeout=5).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return ""
+
+
+def _prompts(models: list[str], arms: list[str]) -> dict:
+    """The exact text each arm sent, so a log can be checked without the code."""
+    out = {}
+    for arm in arms:
+        questions = ARMS[arm]()
+        if any(m.startswith("~typesafe/") for m in models):
+            out[f"jev/{arm}"] = questions
+        if arm != "balanced" and any(not m.startswith("~typesafe/") for m in models):
+            prompt = standard_choice_prompt if arm == "standard_choice" else production_verdict_prompt
+            out[f"chat/{arm}"] = prompt(questions["verdict"])
+    return out
 
 
 def _record(model: str, arm: str, item: Item, a, questions: dict) -> dict:
@@ -81,10 +98,6 @@ def _record(model: str, arm: str, item: Item, a, questions: dict) -> dict:
                         "confidence": round(v.confidence, 5),
                         "probabilities": {o: round(p, 5) for o, p in v.probabilities.items()}}
                     for k, v in a.choices.items()},
-        "scores": {k: {"position": round(v.position, 5),
-                       "raw_score": round(v.raw_score, 5),
-                       "confidence": round(v.confidence, 5)}
-                   for k, v in a.scores.items()},
         "latency_s": round(a.latency_s, 4),
         "attempts": a.attempts,
         "prompt_tokens": a.prompt_tokens,
@@ -113,7 +126,7 @@ def _error_record(model: str, arm: str, item: Item, n_questions: int, err: str) 
         "ts": time.time(), "model": model, "resolved_model": "", "request_id": "",
         "arm": arm, "item_id": item.id, "verdict_true": item.verdict,
         "post_score": item.score, "state_chars": len(item.body),
-        "n_questions": n_questions, "probs": {}, "choices": {}, "scores": {},
+        "n_questions": n_questions, "probs": {}, "choices": {},
         "latency_s": 0.0, "attempts": 0, "prompt_tokens": 0, "completion_tokens": 0,
         "total_tokens": 0, "cost_usd": 0.0, "billed_usd": 0.0, "provider": "",
         "parse_failed": False, "error": err[:300],
@@ -121,10 +134,11 @@ def _error_record(model: str, arm: str, item: Item, n_questions: int, err: str) 
 
 
 def estimate(models: list[str], arms: list[str], items: list[Item]) -> float:
-    """Rough upper bound on what a run will cost, before spending anything.
+    """Rough guess at what a run will cost, before spending anything.
 
-    Tokens are estimated at 4 characters each plus question overhead. It is a
-    guess, so it rounds against us: better to over-warn than to over-spend.
+    Tokens are estimated at 4 characters each plus question overhead, with 25%
+    headroom. It ignores reasoning tokens and the chat system prompt, so it has
+    underestimated real runs; the --budget cap is what actually limits spend.
     """
     chars = sum(len(i.body) for i in items)
     total = 0.0
@@ -153,14 +167,16 @@ def run(models: list[str], arms: list[str], items: list[Item], out: Path,
                 # which can take a minute. Timed like the rest it would land in
                 # the latency percentiles, so it is sent once, untimed, unlogged.
                 t0 = time.time()
-                ask(items[0].body, ARMS[arms[0]](), model)
+                ask("A short warmup request.", ARMS[arms[0]](), model,
+                    label_only=arms[0] == "standard_choice")
                 print(f"\n{model}  loaded and warm in {time.time() - t0:.1f}s", file=sys.stderr)
             for arm in arms:
                 questions = ARMS[arm]()
                 print(f"\n{model}  [{arm}: {len(questions)}q]", file=sys.stderr)
                 for i, item in enumerate(items, 1):
                     try:
-                        a = ask(item.body, questions, model)
+                        a = ask(item.body, questions, model,
+                                label_only=arm == "standard_choice")
                         rec = _record(model, arm, item, a, questions)
                         spend += a.cost_usd
                         n_ok += 1
@@ -193,10 +209,12 @@ def run(models: list[str], arms: list[str], items: list[Item], out: Path,
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Benchmark Jev against LLM baselines.")
-    ap.add_argument("-n", type=int, default=200, help="posts to sample (stratified)")
-    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--data", type=Path, default=DATA,
+                    help="frozen sample from jevbench.sample_2025 (default: the final sample)")
+    ap.add_argument("-n", type=int, default=None,
+                    help="judge only the first N posts, e.g. for a cheap smoke run")
     ap.add_argument("--models", nargs="+", default=DEFAULT_MODELS)
-    ap.add_argument("--arms", nargs="+", default=list(ARMS), choices=list(ARMS))
+    ap.add_argument("--arms", nargs="+", default=["monolithic"], choices=list(ARMS))
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--budget", type=float, default=1.00,
                     help="hard cap in USD; the run stops the moment it is reached "
@@ -205,7 +223,13 @@ def main() -> int:
                     help="print the projected cost and exit without spending")
     args = ap.parse_args()
 
-    items = load_or_fetch(DATA, args.n, args.seed)
+    if "standard_choice" in args.arms and any(m.startswith("~typesafe/") for m in args.models):
+        ap.error("standard_choice is a chat-only prompt")
+    if "balanced" in args.arms and any(not m.startswith("~typesafe/") for m in args.models):
+        ap.error("balanced is a Jev-only arm")
+    if not args.data.exists():
+        ap.error(f"{args.data} not found; build it with python -m jevbench.sample_2025")
+    items = load(args.data, args.n)
     mix = Counter(i.verdict for i in items)
     print(f"{len(items)} posts  {dict(mix)}", file=sys.stderr)
 
@@ -220,6 +244,13 @@ def main() -> int:
         return 1
 
     out = args.out or RUNS / f"{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
+    if out.exists() or out.with_suffix(".meta.json").exists():
+        print(f"Refusing to overwrite {out}", file=sys.stderr)
+        return 1
+    sample_sha = hashlib.sha256(args.data.read_bytes()).hexdigest()
+    code_sha = hashlib.sha256(b"".join(
+        p.read_bytes() for p in sorted((ROOT / "jevbench").glob("*.py")))).hexdigest()
+    started = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     try:
         totals = run(args.models, args.arms, items, out, args.budget)
     except ApiError as e:
@@ -227,11 +258,17 @@ def main() -> int:
         return 1
 
     meta = {
-        "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "git_sha": _git_sha(),
+        "started": started,
+        "finished": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "git_sha": _git("rev-parse", "--short", "HEAD"),
+        # Uncommitted changes mean git_sha alone does not identify the code.
+        "git_dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
         "dataset": DATASET,
+        "dataset_revision": REVISION,
+        "sample_path": str(args.data),
+        "sample_sha256": sample_sha,
+        "code_sha256": code_sha,
         "n_posts": len(items),
-        "seed": args.seed,
         "verdict_mix": dict(mix),
         "models": args.models,
         # Only meaningful for local models, where the hardware is the result.
@@ -239,6 +276,7 @@ def main() -> int:
            if any(m.startswith(LOCAL_PREFIX) for m in args.models) else {}),
         "arms": args.arms,
         "questions_per_arm": {a: len(ARMS[a]()) for a in args.arms},
+        "prompts": _prompts(args.models, args.arms),
         "pricing_usd_per_mtok": {m: PRICING.get(m) for m in args.models},
         "budget_usd": args.budget,
         "projected_usd": round(projected, 6),

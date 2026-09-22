@@ -1,84 +1,139 @@
+import hashlib
 import json
+
 import pytest
 
-from jevbench.client import _parse_llm
-from jevbench.questions import full
+import jevbench.client as client
+from jevbench.client import (UNPARSED_CHOICE, Answer, _parse_distribution, _parse_standard_choice,
+                             production_verdict_prompt, read_usage, split_variant,
+                             standard_choice_prompt)
+from jevbench.data import VERDICTS
+from jevbench.questions import balanced, monolithic
 
-NOUL = {"toxicity": {"type": "noul", "instructions": "?", "criteria": {}}}
-TWO_NOULS = {**NOUL, "threat": {"type": "noul", "instructions": "?", "criteria": {}}}
-
-
-def _nouls(content, questions=NOUL):
-    probs, _, _, failed = _parse_llm(content, questions)
-    return probs, failed
+VERDICT = monolithic()["verdict"]
 
 
-def test_parses_json_inside_a_code_fence_and_prose():
-    probs, failed = _nouls('Sure!\n```json\n{"toxicity": 0.9}\n```')
-    assert probs["toxicity"] == 0.9 and not failed
+def _sha(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
-def test_missing_key_falls_back_to_neutral_and_is_flagged():
-    probs, failed = _nouls('{"toxicity": 0.9}', TWO_NOULS)
-    assert probs["threat"] == 0.5 and failed
+def test_prompts_are_pinned():
+    """The final logs in runs/ come from this text; editing it breaks comparability.
+
+    The chat prompts match the logged prompt token counts
+    (scripts/check_prompt_tokens.py). Change a prompt only for a new,
+    separately named run.
+    """
+    assert _sha(production_verdict_prompt(VERDICT)) == \
+        "e90ebd4e1a5ca27c0d2190175bd0962c37aa90379986f5b2e46735dea9f1e447"
+    assert _sha(standard_choice_prompt(VERDICT)) == \
+        "a7a5fc05228326237b17ee839086655c95b0315d5d4ec5db888761da0cdaffce"
+    assert _sha(json.dumps(monolithic(), sort_keys=True)) == \
+        "76fcc97978069f5fe737b667225b9f4a7ac91fe69cad7843d3bdbde6cc63dace"
+    assert _sha(json.dumps(balanced(), sort_keys=True)) == \
+        "c44708a3c577b75b8a8290602f75433c769851dea64eb80e1e26c9baaa6f1c32"
 
 
-def test_out_of_range_is_clamped_and_flagged():
-    probs, failed = _nouls('{"toxicity": 1.4}')
-    assert probs["toxicity"] == 1.0 and failed
+def test_chat_prompts_carry_every_label_definition_jev_sees():
+    # Fairness guard: if Jev is told what "nah" means and an LLM only sees the
+    # code, the comparison measures the prompt rather than the model.
+    for prompt in (production_verdict_prompt(VERDICT), standard_choice_prompt(VERDICT)):
+        assert all(meaning in prompt for meaning in VERDICTS.values())
 
 
-def test_refusal_prose_is_flagged_not_crashed():
-    probs, failed = _nouls("I can't assess that.")
-    assert probs["toxicity"] == 0.5 and failed
+@pytest.mark.parametrize("content", [
+    '{"verdict": {"yta": 0.1, "nta": 0.7, "esh": 0.1, "nah": 0.1}}',
+    'Sure!\n```json\n{"verdict": {"yta": 0.1, "nta": 0.7, "esh": 0.1, "nah": 0.1}}\n```',
+    '{"verdict": {"probabilities": {"yta": 0.1, "nta": 0.7, "esh": 0.1, "nah": 0.1}}}',
+])
+def test_distribution_is_read_through_fences_and_prose(content):
+    a = _parse_distribution(content, VERDICT)
+    assert a.choice == "nta" and a.probabilities["nta"] == pytest.approx(0.7)
 
 
-def test_non_numeric_value_is_flagged():
-    probs, failed = _nouls('{"toxicity": "no"}')
-    assert probs["toxicity"] == 0.5 and failed
+def test_relative_weights_are_rescaled_to_sum_to_one():
+    a = _parse_distribution('{"verdict": {"yta": 0.1, "nta": 0.85, "esh": 0.1, "nah": 0.05}}',
+                            VERDICT)
+    assert a.choice == "nta" and sum(a.probabilities.values()) == pytest.approx(1)
 
 
-def test_hallucinated_choice_is_flagged_and_zero_confidence():
-    from jevbench.client import _parse_llm
-    from jevbench.questions import full
-
-    q = {"verdict": full()["verdict"]}
-    _, choices, _, failed = _parse_llm('{"verdict": {"choice": "maybe"}}', q)
-    assert failed and choices["verdict"].confidence == 0.0
-
-
-def test_score_normalisation_handles_both_index_conventions():
-    from jevbench.client import normalise_score
-
-    assert normalise_score(1.0, None, 4) == 0.0
-    assert normalise_score(4.0, None, 4) == 1.0
-    assert normalise_score(1.5, {"0": "a", "1": "b", "2": "c", "3": "d"}, 4) == 0.5
-
-
-def test_score_normalisation_survives_a_degenerate_legend():
-    from jevbench.client import normalise_score
-
-    assert normalise_score(2.0, {"1": "only"}, 1) == 0.0
+@pytest.mark.parametrize("content", [
+    "I can't assess that.",
+    '{"verdict": {"yta": 0, "nta": 0, "esh": 0, "nah": 0}}',
+    '{"verdict": {"yta": 0.5, "nta": 0.5, "esh": 0}}',
+    '{"verdict": {"yta": -0.1, "nta": 0.9, "esh": 0.1, "nah": 0.1}}',
+    '{"verdict": {"yta": "high", "nta": 0.9, "esh": 0.1, "nah": 0.1}}',
+    '{"verdict": {"choice": "nta", "confidence": 0.9}}',
+    '[1, 2, 3]',
+    '{"verdict": {bad json',
+])
+def test_unusable_replies_are_unparsed_not_guessed(content):
+    a = _parse_distribution(content, VERDICT)
+    assert a.choice == UNPARSED_CHOICE and not a.probabilities
 
 
 def test_unparsed_choice_can_never_score_correct():
-    """A parse failure must not accidentally be right.
-
-    Defaulting to the first option would let a failure score correct whenever
-    that option happened to be the true verdict -- 35% of a stratified sample.
-    """
-    from jevbench.client import UNPARSED_CHOICE
-    from jevbench.data import VERDICTS
-
+    """Defaulting to the first option would let a failure score correct whenever
+    that option happened to be the true verdict."""
     assert UNPARSED_CHOICE not in VERDICTS
 
 
-def test_hallucinated_choice_becomes_the_sentinel():
-    from jevbench.client import UNPARSED_CHOICE, _parse_llm
+def test_label_only_parser_accepts_numbers_and_codes():
+    assert _parse_standard_choice("2", VERDICT).choice == "nta"
+    assert _parse_standard_choice("NTA", VERDICT).choice == "nta"
+    assert _parse_standard_choice("not sure", VERDICT).choice == UNPARSED_CHOICE
 
-    q = {"verdict": full()["verdict"]}
-    _, choices, _, failed = _parse_llm('{"verdict": {"choice": "probably yta"}}', q)
-    assert failed and choices["verdict"].choice == UNPARSED_CHOICE
+
+def _fake_chat(sent: dict, content: str):
+    def fake_post(url, body, timeout=30.0, retries=3, local=False):
+        sent.update(body, url=url)
+        return ({"choices": [{"message": {"content": content}}],
+                 "usage": {"prompt_tokens": 100, "completion_tokens": 30}}, 0.1, 1)
+    return fake_post
+
+
+def test_chat_request_is_a_system_prompt_plus_the_post(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(client, "_post", _fake_chat(
+        sent, '{"verdict":{"yta":0.1,"nta":0.7,"esh":0.1,"nah":0.1}}'))
+    a = client.ask("Title\n\nBody", monolithic(), "openai/gpt-5-nano#minimal")
+    assert sent["messages"] == [
+        {"role": "system", "content": production_verdict_prompt(VERDICT)},
+        {"role": "user", "content": "Title and post:\nTitle\n\nBody"}]
+    assert sent["model"] == "openai/gpt-5-nano" and sent["temperature"] == 0
+    assert sent["reasoning"] == {"effort": "minimal"}
+    assert a.choices["verdict"].choice == "nta" and not a.parse_failed
+
+
+def test_label_only_request_uses_the_numbered_prompt(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(client, "_post", _fake_chat(sent, "2"))
+    a = client.ask("a post", monolithic(), "openai/gpt-5-nano#minimal", label_only=True)
+    assert sent["messages"][0]["content"] == standard_choice_prompt(VERDICT)
+    assert a.choices["verdict"].choice == "nta" and not a.choices["verdict"].probabilities
+
+
+def test_chat_models_only_answer_the_verdict_question():
+    with pytest.raises(ValueError):
+        client.ask("a post", balanced(), "openai/gpt-5-nano")
+    with pytest.raises(ValueError):
+        client.ask("a post", monolithic(), "~typesafe/jev-latest", label_only=True)
+
+
+def test_jev_answers_are_read_by_question_type(monkeypatch):
+    sent = {}
+
+    def fake_post(url, body, timeout=30.0, retries=3, local=False):
+        sent.update(body, url=url)
+        return ({"model": "typesafe/jev-1.13", "id": "req-1",
+                 "answers": {"poster_at_fault": {"noul": 0.8}, "other_at_fault": {"noul": 0.3}},
+                 "usage": {"input_tokens": 900, "output_tokens": 20, "cost": 4e-5}}, 0.2, 1)
+
+    monkeypatch.setattr(client, "_post", fake_post)
+    a = client.ask("a post", balanced(), "~typesafe/jev-latest")
+    assert sent["url"] == client.DECISIONS_URL and sent["questions"] == balanced()
+    assert a.probs == {"poster_at_fault": 0.8, "other_at_fault": 0.3}
+    assert a.resolved_model == "typesafe/jev-1.13" and a.cost_usd == 4e-5
 
 
 def test_missing_key_is_fatal_not_per_item(monkeypatch):
@@ -88,50 +143,19 @@ def test_missing_key_is_fatal_not_per_item(monkeypatch):
     the repo root would otherwise satisfy the lookup and this would pass for
     the wrong reason on the maintainer's machine and fail in CI.
     """
-    import jevbench.client as client
-
     monkeypatch.setattr(client, "api_key", lambda: "")
     with pytest.raises(client.FatalApiError):
         client._post("https://example.invalid", {})
 
 
-def test_legend_numbers_read_either_side():
-    from jevbench.client import _legend_numbers
-
-    assert _legend_numbers({"1": "Civil", "2": "Rude"}) == [1.0, 2.0]
-    assert _legend_numbers({"Civil": 1, "Rude": 2}) == [1.0, 2.0]
-    assert _legend_numbers({"a": "x"}) == []
-    assert _legend_numbers(None) == []
-
-
-def test_score_normalisation_does_not_guess_indexing_per_call():
-    """Indexing is a property of the API; the report decides it once per run."""
-    from jevbench.client import normalise_score
-
-    # A sub-1.0 score must not silently flip this call to 0-indexed scaling.
-    assert normalise_score(3.0, None, 4) == normalise_score(3.0, None, 4)
-    assert normalise_score(1.0, None, 4) == 0.0
-
-
 def test_placeholder_key_fails_with_a_useful_message(monkeypatch):
-    """A forgotten placeholder should say so, not surface as a bare 401."""
-    from jevbench.client import FatalApiError, _post
-
-    import jevbench.client as client
-
     monkeypatch.setattr(client, "api_key", lambda: "sk-or-v1-REPLACE-ME")
-    with pytest.raises(FatalApiError, match="placeholder"):
-        _post("https://example.invalid", {})
+    with pytest.raises(client.FatalApiError, match="placeholder"):
+        client._post("https://example.invalid", {})
 
 
 def test_usage_is_read_under_both_naming_conventions():
-    """Regression: the Decisions API and chat completions name these differently.
-
-    Reading only one pair logs zero tokens and zero cost for the other, which
-    silently empties the cost comparison this benchmark exists to make.
-    """
-    from jevbench.client import read_usage
-
+    """Regression: the Decisions API and chat completions name these differently."""
     decisions = {"usage": {"input_tokens": 1336, "output_tokens": 217, "cost": 5.6112e-05}}
     chat = {"usage": {"prompt_tokens": 900, "completion_tokens": 40, "cost": 0.0001}}
     assert read_usage(decisions) == (1336, 217, 5.6112e-05)
@@ -139,40 +163,28 @@ def test_usage_is_read_under_both_naming_conventions():
     assert read_usage({}) == (0, 0, 0.0)
 
 
-def test_billed_cost_is_preferred_over_the_local_price_table():
-    """Prices change; the provider's own figure does not go stale."""
-    from jevbench.client import Answer
+def _answer(**kw) -> Answer:
+    return Answer(probs={}, choices={}, model="~typesafe/jev-latest", latency_s=0.1,
+                  n_questions=1, **kw)
 
-    a = Answer(probs={}, choices={}, scores={}, model="~typesafe/jev-latest",
-               latency_s=0.1, prompt_tokens=1336, completion_tokens=217,
-               n_questions=1, billed_usd=5.6112e-05)
-    assert a.cost_usd == 5.6112e-05
+
+def test_billed_cost_is_preferred_over_the_local_price_table():
+    assert _answer(prompt_tokens=1336, completion_tokens=217,
+                   billed_usd=5.6112e-05).cost_usd == 5.6112e-05
 
 
 def test_falls_back_to_the_price_table_when_cost_is_absent():
-    from jevbench.client import Answer
-
-    a = Answer(probs={}, choices={}, scores={}, model="~typesafe/jev-latest",
-               latency_s=0.1, prompt_tokens=1_000_000, completion_tokens=999,
-               n_questions=1)
-    assert a.cost_usd == pytest.approx(0.042)
+    assert _answer(prompt_tokens=1_000_000, completion_tokens=999).cost_usd == \
+        pytest.approx(0.042)
 
 
 def test_reasoning_variant_is_parsed_but_kept_in_the_label():
-    """Thinking budget changes latency and cost by >10x, so it is part of the
-    identity of what was measured, not a hidden setting."""
-    from jevbench.client import split_variant
-
     assert split_variant("openai/gpt-5-nano#minimal") == ("openai/gpt-5-nano", "minimal")
     assert split_variant("openai/gpt-5-nano") == ("openai/gpt-5-nano", "")
 
 
 def test_local_model_needs_no_key_and_hits_the_local_server(monkeypatch):
-    import jevbench.client as client
-
     monkeypatch.delenv("LOCAL_LLM_URL", raising=False)
-    from jevbench.questions import monolithic
-
     monkeypatch.setattr(client, "api_key", lambda: (_ for _ in ()).throw(
         AssertionError("a local model must not need an OpenRouter key")))
     seen = {}
@@ -185,43 +197,25 @@ def test_local_model_needs_no_key_and_hits_the_local_server(monkeypatch):
             def __enter__(self): return self
             def __exit__(self, *a): return False
             def read(self): return json.dumps({
-                "choices": [{"message": {"content": '{"verdict": {"choice": "nta", "confidence": 0.7}}'}}],
+                "choices": [{"message": {"content": '{"verdict": {"yta": 0.1, "nta": 0.7, "esh": 0.1, "nah": 0.1}}'}}],
                 "usage": {"prompt_tokens": 10, "completion_tokens": 5}}).encode()
         return R()
 
     monkeypatch.setattr(client.urllib.request, "urlopen", fake_urlopen)
-    a = client.ask("a post", monolithic(), "local/qwen-27b")
+    a = client.ask("a post", monolithic(), "local/qwen-27b#none")
     assert seen["url"] == "http://localhost:1234/api/v0/chat/completions" and seen["auth"] is None
     assert seen["body"]["model"] == "qwen-27b" and "reasoning" not in seen["body"]
+    assert seen["body"]["reasoning_effort"] == "none"
     assert seen["timeout"] >= 300
-    assert a.model == "local/qwen-27b" and a.cost_usd == 0.0
+    assert a.model == "local/qwen-27b#none" and a.cost_usd == 0.0
     assert a.choices["verdict"].choice == "nta"
 
 
 def test_local_url_accepts_a_bare_host(monkeypatch):
-    from jevbench.client import local_chat_url
     lms = "http://10.0.0.5:1234/api/v0/chat/completions"
     oai = "http://10.0.0.5:1234/v1/chat/completions"
     for given, want in [("http://10.0.0.5:1234", lms), ("http://10.0.0.5:1234/", lms),
                         ("http://10.0.0.5:1234/api/v0", lms), ("http://10.0.0.5:1234/v1", oai),
                         (oai, oai)]:
         monkeypatch.setenv("LOCAL_LLM_URL", given)
-        assert local_chat_url() == want, given
-
-
-def test_local_reasoning_level_is_sent_the_way_lm_studio_reads_it(monkeypatch):
-    import jevbench.client as client
-    from jevbench.questions import monolithic
-
-    sent = {}
-
-    def fake_post(url, body, timeout=30.0, retries=3, local=False):
-        sent.update(body)
-        return ({"choices": [{"message": {"content": '{"verdict": {"choice": "nta", "confidence": 0.9}}'}}],
-                 "usage": {"prompt_tokens": 1, "completion_tokens": 1}}, 0.1, 1)
-
-    monkeypatch.setattr(client, "_post", fake_post)
-    client.ask("a post", monolithic(), "local/qwen#none")
-    assert sent["reasoning_effort"] == "none" and "reasoning" not in sent
-    assert sent["model"] == "qwen"
-    assert "/no_think" not in sent["messages"][0]["content"]
+        assert client.local_chat_url() == want, given

@@ -15,17 +15,41 @@ import math
 from dataclasses import dataclass
 
 
-def brier(preds: list[float], truth: list[float]) -> float:
-    """Mean squared error between predicted and observed probability.
+def multiclass_scores(
+    predictions: list[dict[str, float]], truth: list[str], labels: tuple[str, ...],
+    priors: dict[str, float] | None = None,
+) -> tuple[float, float]:
+    """Mean multiclass Brier and log loss; optional exact population class weights.
 
-    Lower is better. Works with fractional truth as well as 0/1: a target of 0.6
-    contributes (p - 0.6)^2, so confidently saying 1.0 is penalised.
+    Brier sums squared errors across all classes, so its range is 0 to 2.
+    Log loss floors the true-class probability at 1e-15 so reported means stay finite.
     """
-    if len(preds) != len(truth):
-        raise ValueError(f"length mismatch: {len(preds)} preds vs {len(truth)} truth")
-    if not preds:
-        raise ValueError("no predictions")
-    return sum((p - t) ** 2 for p, t in zip(preds, truth)) / len(preds)
+    if not predictions or len(predictions) != len(truth):
+        raise ValueError("predictions and truth must have the same nonzero length")
+    if not labels or len(set(labels)) != len(labels):
+        raise ValueError("labels must be unique and nonempty")
+    counts = {label: truth.count(label) for label in labels}
+    if any(target not in counts for target in truth):
+        raise ValueError("unknown target")
+    if priors is not None:
+        if (set(priors) != set(labels) or
+                any(not math.isfinite(v) or v <= 0 for v in priors.values()) or
+                any(not counts[label] for label in labels)):
+            raise ValueError("priors require positive values and observed examples for every label")
+    weights = ([priors[t] / counts[t] for t in truth] if priors is not None
+               else [1.0] * len(truth))
+    brier_total = log_total = 0.0
+    for probs, target, weight in zip(predictions, truth, weights):
+        if set(probs) != set(labels):
+            raise ValueError("incomplete distribution")
+        if any(not math.isfinite(p) or not 0 <= p <= 1 for p in probs.values()):
+            raise ValueError("probabilities must be finite and in [0,1]")
+        if not math.isclose(sum(probs.values()), 1.0, abs_tol=1e-3):
+            raise ValueError("probabilities must sum to 1")
+        brier_total += weight * sum((probs[label] - (label == target)) ** 2
+                                    for label in labels)
+        log_total -= weight * math.log(max(probs[target], 1e-15))
+    return brier_total / sum(weights), log_total / sum(weights)
 
 
 @dataclass(frozen=True)
@@ -119,10 +143,8 @@ def gated_coverage(
 ) -> list[Coverage]:
     """Confidence-gated routing using a real confidence signal.
 
-    `coverage_curve` infers certainty from how far a noul sits from 0.5, which
-    is the best a Noul allows. Choice and Score return an actual `confidence`
-    field, so this takes it directly -- the difference between the two is worth
-    reporting, since it is the practical reason to reach for a Choice.
+    Takes the chosen-label probability directly: accept answers at or above
+    each threshold and report how often those accepted answers were right.
     """
     if len(confidence) != len(correct):
         raise ValueError(f"length mismatch: {len(confidence)} vs {len(correct)}")

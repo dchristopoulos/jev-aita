@@ -1,29 +1,47 @@
-"""The metrics are the only real logic in this repo, so they are the only thing
-with tests. Everything else is I/O against an API we cannot assert on."""
+"""Scoring rules and calibration helpers."""
 
 import math
 
 import pytest
 
 from jevbench.metrics import (
-    bin_support, brier, cost_usd, ece, gated_coverage, percentile,
+    bin_support, cost_usd, ece, gated_coverage, multiclass_scores, percentile,
     reliability_bins,
 )
 
 
-def test_brier_perfect_and_worst():
-    assert brier([1.0, 0.0], [1.0, 0.0]) == 0.0
-    assert brier([1.0, 0.0], [0.0, 1.0]) == 1.0
-
-
-def test_brier_penalises_overconfidence_on_fractional_truth():
-    # Truth is 0.6; hedging at 0.6 must beat shouting 1.0.
-    assert brier([0.6], [0.6]) < brier([1.0], [0.6])
-
-
-def test_brier_rejects_mismatched_lengths():
+def test_multiclass_scores_use_all_four_probabilities_and_exact_class_weights():
+    labels = ("nta", "yta", "esh", "nah")
+    predictions = [
+        {"nta": 0.8, "yta": 0.1, "esh": 0.05, "nah": 0.05},
+        {"nta": 0.6, "yta": 0.2, "esh": 0.1, "nah": 0.1},
+    ]
+    truth = ["nta", "yta"]
+    b, ll = multiclass_scores(predictions, truth, labels)
+    assert b == pytest.approx((0.055 + 1.02) / 2)
+    assert ll == pytest.approx((-math.log(0.8) - math.log(0.2)) / 2)
     with pytest.raises(ValueError):
-        brier([0.5], [0.5, 0.5])
+        multiclass_scores(predictions, truth, labels,
+                          {"nta": 9, "yta": 1, "esh": 1, "nah": 1})
+    full_truth = ["nta", "yta", "esh", "nah"]
+    full_predictions = predictions + [
+        {"nta": 0, "yta": 0, "esh": 1, "nah": 0},
+        {"nta": 0, "yta": 0, "esh": 0, "nah": 1},
+    ]
+    wb, _ = multiclass_scores(full_predictions, full_truth, labels,
+                              {"nta": 9, "yta": 1, "esh": 1, "nah": 1})
+    assert wb == pytest.approx((9 * 0.055 + 1.02) / 12)
+
+
+def test_multiclass_rejects_incomplete_distribution():
+    with pytest.raises(ValueError):
+        multiclass_scores([{"nta": 1.0}], ["nta"], ("nta", "yta", "esh", "nah"))
+
+
+def test_multiclass_log_loss_handles_zero_true_probability():
+    _, loss = multiclass_scores([{"nta": 0, "yta": 1, "esh": 0, "nah": 0}],
+                                ["nta"], ("nta", "yta", "esh", "nah"))
+    assert loss == pytest.approx(-math.log(1e-15))
 
 
 def test_perfectly_calibrated_model_has_zero_ece():
@@ -74,19 +92,6 @@ def test_percentile_single_value():
 def test_free_output_tokens_are_free():
     # Jev's pricing shape: output is $0.00/M, so a long answer costs nothing.
     assert cost_usd(1_000_000, 999, in_per_m=0.042, out_per_m=0.0) == pytest.approx(0.042)
-
-
-def test_degenerate_model_scores_well_on_rare_dimensions():
-    """Documents why the per-dimension table prints each dimension's base rate.
-
-    On a dimension almost nobody rates positive, a model that always answers
-    0.0 looks near-perfectly calibrated. ECE alone cannot distinguish that from
-    genuine skill, so the base rate is reported beside it.
-    """
-    truth = [0.0] * 99 + [1.0]          # 1% base rate
-    lazy = ece([0.0] * 100, truth)
-    assert lazy < 0.02                   # flattering
-    assert brier([0.0] * 100, truth) < 0.02
 
 
 def test_gated_coverage_uses_real_confidence():
