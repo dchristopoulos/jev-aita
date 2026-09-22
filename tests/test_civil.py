@@ -62,3 +62,25 @@ def test_cache_is_reused_without_network(monkeypatch, tmp_path):
     monkeypatch.setattr(civil, "fetch", lambda *a, **k: (_ for _ in ()).throw(
         AssertionError("hit the network despite a warm cache")))
     assert len(civil.load_or_fetch(len(BANDS))) == len(BANDS)
+
+
+def test_scaling_recovers_a_known_distortion():
+    # Build predictions that are correctly ORDERED but on the wrong scale, the
+    # exact failure the real data shows, and check the fit undoes it.
+    import math
+
+    from jevbench.civil import _logit, apply_scaling, fit_scaling
+
+    truth = [i / 50 for i in range(1, 50)]
+    skewed = [1 / (1 + math.exp(-(1.8 * _logit(t) + 1.2))) for t in truth]
+    assert brier(skewed, truth) > 0.02
+    a, b = fit_scaling(skewed, truth)
+    assert brier(apply_scaling(skewed, a, b), truth) < 0.005
+
+
+def test_recalibration_is_scored_out_of_sample(monkeypatch):
+    from jevbench.civil import split_half_recalibration
+    recs = [{"model": "m", "predicted": 0.9, "toxicity_true": 0.3} for _ in range(20)]
+    out = split_half_recalibration(recs)
+    assert out[0]["n_fit"] == 10 and out[0]["n_test"] == 10
+    assert out[0]["n_fit"] + out[0]["n_test"] == len(recs)

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
 import sys
 import time
@@ -148,6 +149,67 @@ def run(models: list[str], items: list[Comment], out: Path, budget: float = 0.0)
             "wall_s": round(time.time() - started, 1), "stopped_early": False}
 
 
+def _logit(p: float, eps: float = 1e-6) -> float:
+    p = min(max(p, eps), 1.0 - eps)
+    return math.log(p / (1.0 - p))
+
+
+def fit_scaling(preds: list[float], truth: list[float],
+                steps: int = 3000, lr: float = 0.05) -> tuple[float, float]:
+    """Fit p' = sigmoid(a * logit(p) + b) by gradient descent on cross-entropy.
+
+    Two parameters, which is the point: if a model's probabilities are ordered
+    correctly but sit on the wrong scale, a slope and an intercept are the
+    whole fix, and anything more would be fitting noise on 150 points.
+
+    Cross-entropy is taken against the rater *fraction* rather than a rounded
+    label, so a comment 6 of 10 raters called toxic pulls toward 0.6 and not
+    toward 1.0.
+    """
+    a, b = 1.0, 0.0
+    if not preds:
+        raise ValueError("no predictions")
+    lg = [_logit(p) for p in preds]
+    for _ in range(steps):
+        ga = gb = 0.0
+        for z0, t in zip(lg, truth):
+            err = 1.0 / (1.0 + math.exp(-(a * z0 + b))) - t
+            ga += err * z0
+            gb += err
+        a -= lr * ga / len(preds)
+        b -= lr * gb / len(preds)
+    return a, b
+
+
+def apply_scaling(preds: list[float], a: float, b: float) -> list[float]:
+    return [1.0 / (1.0 + math.exp(-(a * _logit(p) + b))) for p in preds]
+
+
+def split_half_recalibration(recs: list[dict], seed: int = 0) -> list[dict]:
+    """Fit the scaling on one half and score it on the other.
+
+    Fitting and reporting on the same comments would show an improvement that
+    a new comment never sees, which is the standard way this analysis lies.
+    """
+    out = []
+    for model in sorted({r["model"] for r in recs}):
+        sub = [r for r in recs if r["model"] == model]
+        random.Random(seed).shuffle(sub)
+        fit, test = sub[: len(sub) // 2], sub[len(sub) // 2:]
+        if not fit or not test:
+            continue
+        a, b = fit_scaling([r["predicted"] for r in fit],
+                           [r["toxicity_true"] for r in fit])
+        pt = [r["predicted"] for r in test]
+        tt = [r["toxicity_true"] for r in test]
+        pc = apply_scaling(pt, a, b)
+        out.append({"model": model, "n_fit": len(fit), "n_test": len(test),
+                    "a": a, "b": b,
+                    "ece_raw": ece(pt, tt), "ece_cal": ece(pc, tt),
+                    "brier_raw": brier(pt, tt), "brier_cal": brier(pc, tt)})
+    return out
+
+
 def report(paths: list[Path]) -> str:
     recs = [json.loads(l) for p in paths for l in p.open()]
     good = [r for r in recs if r.get("predicted") is not None]
@@ -178,6 +240,19 @@ def report(paths: list[Path]) -> str:
         for b in bins:
             lines.append(f"| {b.lo:.1f}–{b.hi:.1f} | {b.n} | {b.mean_pred:.3f} | "
                          f"{b.mean_truth:.3f} | {b.mean_truth - b.mean_pred:+.3f} |")
+    rows = split_half_recalibration(good)
+    if rows:
+        lines += ["", "### Does a constant fix it?", "",
+                  "Two parameters (slope and intercept on the log-odds) fitted on a "
+                  "random half and scored on the held-out half.", "",
+                  "| Model | fit / test | ECE raw → cal | Brier raw → cal | a | b |",
+                  "|---|---|---|---|---|---|"]
+        for r in rows:
+            lines.append(
+                f"| `{r['model']}` | {r['n_fit']} / {r['n_test']} | "
+                f"{r['ece_raw']:.3f} → **{r['ece_cal']:.3f}** | "
+                f"{r['brier_raw']:.3f} → **{r['brier_cal']:.3f}** | "
+                f"{r['a']:.2f} | {r['b']:+.2f} |")
     return "\n".join(lines)
 
 
