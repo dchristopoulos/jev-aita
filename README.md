@@ -106,7 +106,9 @@ move, you edit a number instead of rewriting a prompt.
 
 ## Results
 
-2,400 requests against 200 posts and 300 comments, $0.36 total, 0 failures on Jev.
+2,400 requests against 200 posts and 300 comments, **$0.2169** in billed cost, 0 failures on
+Jev. (An earlier gpt-5-nano pass was discarded when every call came back truncated; its cost is
+not in that figure because its records are not in `runs/`.)
 Every number below comes out of [`runs/`](runs/), which is committed.
 
 ### The head-to-head
