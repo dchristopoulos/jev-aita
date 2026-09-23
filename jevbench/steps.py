@@ -176,16 +176,23 @@ def out_of_fold(x: list[list[float]], y: list[int], w: list[float],
     preds: list[dict[str, float]] = [{}] * len(y)
     for f in range(folds):
         train = [i for i in range(len(y)) if fold[i] != f]
-        cols = list(zip(*(x[i] for i in train)))
-        mu = [sum(col) / len(col) for col in cols]
-        sd = [math.sqrt(sum((v - m) ** 2 for v in col) / len(col)) or 1.0
-              for col, m in zip(cols, mu)]
-        z = lambda xi: [(v - m) / s for v, m, s in zip(xi, mu, sd)] + [1.0]
-        W = fit([z(x[i])[:-1] for i in train], [y[i] for i in train], [w[i] for i in train])
-        for i in range(len(y)):
-            if fold[i] == f:
-                preds[i] = dict(zip(LABELS, softmax(W, z(x[i]))))
+        test = [i for i in range(len(y)) if fold[i] == f]
+        for i, p in zip(test, fit_predict([x[i] for i in train], [y[i] for i in train],
+                                          [w[i] for i in train], [x[i] for i in test])):
+            preds[i] = p
     return preds
+
+
+def fit_predict(x: list[list[float]], y: list[int], w: list[float],
+                new: list[list[float]]) -> list[dict[str, float]]:
+    """Standardise on `x`, fit, and predict four verdict probabilities for `new`."""
+    cols = list(zip(*x))
+    mu = [sum(col) / len(col) for col in cols]
+    sd = [math.sqrt(sum((v - m) ** 2 for v in col) / len(col)) or 1.0
+          for col, m in zip(cols, mu)]
+    z = lambda xi: [(v - m) / s for v, m, s in zip(xi, mu, sd)]
+    W = fit([z(xi) for xi in x], y, w)
+    return [dict(zip(LABELS, softmax(W, z(xi) + [1.0]))) for xi in new]
 
 
 # --- Commands --------------------------------------------------------------
