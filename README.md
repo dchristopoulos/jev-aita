@@ -5,10 +5,6 @@ behind Sonnet 5 (Brier score 0.369 vs. 0.344; lower is better). Jev's median
 call was 6.3× faster than Sonnet's, and 62× cheaper. That's fast, but not
 the "40x-200x faster" TypeSafe claims.
 
-I chose Jev's question on 200 older posts, then ran the 770-post comparison
-using raw answers. The extra question check and probability adjustments came
-after I saw those results. They do not change the original ranking.
-
 ![Weighted Brier scores with 95% intervals for the original runs and two later adjusted Jev results](docs/headline.svg)
 
 The chart includes two later Jev follow-ups. I did not retrain Jev itself:
@@ -87,9 +83,11 @@ How to read the table:
   each model ran once, and even at temperature 0 a restarted GPT-5 nano run
   repeated only 64 of 103 answers.
 
-| Model | Weighted Brier ↓ [95% CI] | Weighted top-1 [95% CI] | Macro recall | Median call | $ per 1,000 posts |
+| Model and setup | Weighted Brier ↓ [95% CI] | Weighted top-1 [95% CI] | Macro recall | Median call | $ per 1,000 posts |
 |---|---:|---:|---:|---:|---:|
+| *Jev, direct + 2023-trained adjustment* | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% | 0.39 s | $0.037 |
 | Sonnet 5 | 0.344 [0.321, 0.370] | 76.9% [74.5, 79.1] | 36.1% | 2.46 s | $2.291 |
+| *Jev, five yes/no + 2023-trained adjustment* | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% | 0.57 s | $0.044 |
 | **Jev, direct question** | 0.369 [0.344, 0.398] | 75.4% [72.7, 77.8] | 37.4% | 0.39 s | $0.037 |
 | Qwen 3.6 35B-A3B, local | 0.410 [0.382, 0.437] | 75.3% [73.3, 77.2] | 30.3% | 1.62 s | not billed |
 | *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
@@ -101,9 +99,16 @@ How to read the table:
 Jev's two-question setup combines two yes/no probabilities into four verdict
 probabilities. It is separate from the later five-question check.
 
-- **Sonnet 5 came first, Jev second.** Sonnet's lead is 0.025 (95% CI 0.003 to
-  0.046). That is outside noise on its own, but not after correcting for
-  comparing Jev with five models at once (Bonferroni), so call it borderline.
+The two italic Jev rows use separate rules trained on 300 older posts. The
+seven original model rows use answers without adjustment. All runs used the
+same 770-post sample. The adjustment and five-question run were chosen after
+the original results were known, so this is not a fresh holdout or a
+like-for-like win over raw Sonnet.
+
+- **Among unadjusted setups, Sonnet 5 came first and Jev direct second.**
+  Sonnet's lead is 0.025 (95% CI 0.003 to 0.046). That is outside noise on its
+  own, but not after correcting for five comparisons with Jev (Bonferroni),
+  so call it borderline.
   On another score, log loss, Sonnet's lead is clearer and survives that
   correction. Without weighting, there's no clear difference (Jev 0.556, Sonnet 0.563).
   Jev beat both GPT-5 nano settings and both local models.
@@ -123,83 +128,30 @@ Local models ran as 4-bit MLX builds on one laptop; Qwen's 4 malformed answers
 count as wrong. More metrics, confusion matrices and calibration are in the
 [full results](docs/results.md).
 
-## Follow-ups after the benchmark
+## What changes with trained adjustments?
 
-A model's probabilities are often off in predictable ways, for example too
-confident. A common fix is to train a small regression on answers where the
-right verdict is known, then use it to correct new answers. The model itself
-doesn't change. The main table above uses no fix. These later checks began
-after the benchmark results were known.
+Jev itself was not retrained. A small regression learned to turn each setup's
+answers into four verdict probabilities. On 300 older 2023 posts, each scored
+by a rule trained on the others, five questions scored 0.312 against 0.320 for
+adjusted direct. The difference was inconclusive. I then trained separate
+rules on all 300 posts and applied them to the 770-post test for the two italic
+Jev rows above. On those 770 posts, five questions scored 0.009 worse than
+adjusted direct (95% CI: 0.001 better to 0.019 worse). Neither adjusted setup
+correctly picked ESH or NAH. The five-question run was chosen after the
+original test results were known, so these are exploratory results on the same
+posts, not a new holdout.
+[Development check](runs/diagnostic/steps-summary.md),
+[question wording](jevbench/steps.py), and
+[770-post follow-up](docs/FIVE_QUESTION_FOLLOWUP.md).
 
-**1. More question setups on 300 unused 2023 posts.** Each setup, including
-direct, got its own trained fix. For the yes/no setups, the fix also turns
-answers into verdict probabilities. Each post was scored by a fix trained on
-the other posts, never on itself. These numbers cannot be compared with the
-raw answers in the main table. Lower Brier is better; a negative difference
-means the setup beat direct. Accuracy is weighted to Reddit's verdict mix.
-
-| Setup | Questions per call | Weighted Brier ↓ | Difference from direct | Weighted accuracy | Median call | $ per 1,000 posts |
-|---|---:|---:|---:|---:|---:|---:|
-| Direct, with fix | 1 | 0.320 | baseline | 79.3% | 525 ms | $0.034 |
-| Five yes/no | 5 | 0.312 | −0.008 | 80.6% | 529 ms | $0.040 |
-| Two severity scores | 2 | 0.329 | +0.009 | 80.0% | 526 ms | $0.035 |
-| Five mixed steps | 5 | 0.322 | +0.001 | 80.9% | 531 ms | $0.046 |
-| Five steps plus direct | 6 | 0.322 | +0.002 | 79.8% | 520 ms | $0.052 |
-
-- Five yes/no looked best (0.008 better than direct), but that could be
-  noise: the 95% confidence interval (CI) runs from 0.026 better to 0.010
-  worse.
-- Extra questions barely slowed calls down, but cost more.
-- Most of the gain came from the fix, not from extra questions: direct alone
-  went from 0.354 raw to 0.320 with the fix.
-- The fix almost never picked ESH or NAH (it caught 0–2% of them), because it
-  learned to favor the common verdicts.
-
-[Full development tables](runs/diagnostic/steps-summary.md) and
-[question wording](jevbench/steps.py) give the remaining detail.
-
-**2. Jev with a fix trained on those 300 posts.** I fitted the fix on Jev's
-answers to the older posts, then applied it to the 770 benchmark posts. Only
-Jev got this fix, so don't compare these numbers with Sonnet's raw row;
-follow-up 3 applies the same kind of fix to every model.
-
-| Jev setup | Weighted Brier ↓ [95% CI] | Weighted top-1 [95% CI] | Macro recall |
-|---|---:|---:|---:|
-| One question, no fix (from the table above) | 0.369 [0.344, 0.398] | 75.4% [72.7, 77.8] | 37.4% |
-| One question, with fix | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% |
-| Five yes/no questions, with fix | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% |
-
-- The fix improved Jev's Brier score (0.369 → 0.337), but it never picks ESH or
-  NAH as the answer.
-- Five questions did not beat one question: 0.009 worse, which could be noise
-  (95% CI: from 0.001 better to 0.019 worse). They cost a little more ($0.044 vs. $0.037 per
-  1,000 posts) and were a little slower (0.57 s vs. 0.39 s per call, measured
-  on a different day).
-- We picked this follow-up after seeing the test results, so treat it as
-  exploratory, not as a clean test.
-
-[Plan, full results and run log](docs/FIVE_QUESTION_FOLLOWUP.md).
-
-**3. Every model with the same kind of fix.** For a fair comparison, every
-model got the same kind of fix, applied to its saved answers (no new calls).
-This fix was trained on the 770 test posts themselves, but no post was
-corrected by a fix that had seen it. I split the posts into 10 groups and
-corrected each with a fix trained on the other nine. The method was written
-down and committed before this was run, though after the main results were
-known.
-
-- Sonnet's lead over Jev shrank from 0.025 to 0.007 (Jev 0.339 with the fix),
-  small enough to be noise: the 95% CI runs from Sonnet ahead by 0.021 to Jev
-  ahead by 0.007.
-- The fix helped every model and bunched them together: Gemma went from last
-  (0.588) to 0.352, and GPT-5 nano minimal ended at 0.410, about the base-rate
-  score (0.415).
-- The fix can also change which verdict a model picks, so this is not purely
-  a confidence correction.
-- Both models got better on NTA posts and worse on YTA, ESH and NAH posts.
-  After the fix, no model picked ESH or NAH for any post.
-
-[Plan and results](docs/RECALIBRATION_PLAN.md).
+For a like-for-like adjustment check, I also fitted the same kind of regression
+for every original configuration. Each post's adjusted answer came from a rule
+trained on the other nine of ten folds of the 770-post set; no new model calls
+were made. Sonnet scored 0.332 and Jev direct 0.339, a lead of 0.007 with an
+interval that includes zero. The adjustment changed verdict choices and no
+model picked ESH or NAH afterward. This analysis also used already-known
+test results, so it does not replace the original ranking.
+[Plan and full results](docs/RECALIBRATION_PLAN.md).
 
 ## What this does not show
 
@@ -291,8 +243,8 @@ She crashed my last one and never paid for the repairs."
 
 ### Rebuild the results
 
-No key or network needed. This regenerates every table and chart from the
-committed logs:
+No key or network needed. This regenerates the main benchmark tables and
+headline chart from the committed logs:
 
 ```bash
 python -m jevbench.report runs/final-*.jsonl \
@@ -302,13 +254,13 @@ python -m jevbench.report runs/final-*.jsonl \
 
 It rewrites `docs/results.md` without one section (Reddit's verdict against
 the comment vote), which needs the posts from the next step. The 300-post
-follow-up table rebuilds from its logs:
+development check rebuilds from its logs:
 
 ```bash
 python -m jevbench.steps fit runs/diagnostic/steps-dev-*.jsonl
 ```
 
-And follow-up 3, the same kind of fix for every model (about a minute, no key):
+The adjustment check for every model also rebuilds without a key:
 
 ```bash
 python -m jevbench.recalibrate
