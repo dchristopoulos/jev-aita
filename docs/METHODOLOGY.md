@@ -212,11 +212,20 @@ the main results, and separately with all four verdicts weighted equally.
 
 No setup beat the direct question. Against the refitted direct answer, the
 weighted Brier differences were −0.008 [−0.026, +0.010] for 5 yes/no, +0.009
-for 2 Scores, +0.001 for 5 mixed steps and +0.002 with the verdict added. The
-extra questions raised the billed cost by up to 1.5×. The refit itself
-improved the direct answer's weighted Brier from 0.354 to 0.320; that is a
-calibration effect, not a better question, and it is not applied in the final
-comparison because the chat models would need the same treatment.
+for 2 Scores, +0.001 for 5 mixed steps and +0.002 with the verdict added. With
+all four verdicts weighted equally, no difference excluded zero either; the
+closest was −0.009 [−0.033, +0.016] for the steps plus the verdict. The extra
+questions raised the billed cost by up to 1.5×.
+
+The comparison is against the refitted direct answer, not the raw one. Every
+step setup scores better than raw direct (0.354), but refitting direct alone
+gives 0.320, so that gain is the regression's recalibration, not the extra
+questions. The recalibration has a cost: fitted toward the population mix, every
+refitted model, direct included, predicted ESH or NAH for almost no post (0–2%
+recall), improving the weighted score by betting on NTA and YTA. Weighted
+equally, the refitted models recover 51–64% recall on ESH and NAH. The refit
+is not applied in the final comparison: it is post-processing, and the chat
+models would need the same treatment.
 Full tables: [`steps-summary.md`](../runs/diagnostic/steps-summary.md).
 
 **Posts.** The 300 posts come from the older `OsamaBsher/AITA-Reddit-Dataset`,

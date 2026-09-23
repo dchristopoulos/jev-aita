@@ -46,8 +46,9 @@ Jev can take several questions per call, of three types: **yes/no** (returns
 one probability), **Choice** (a probability for each option) and **Score** (a
 probability for each level of a scale). So "is the poster the asshole?" can be
 asked directly, or split into smaller judgments that a combining step turns
-into a verdict. I tried eight setups, and **asking directly matched or beat
-every split-up version**:
+into a verdict. I tried eight setups, and **no split-up version beat asking
+directly** (in the 300-post check, compared with direct after the same
+combining step; details below):
 
 | Setup | Questions per call | What Jev is asked | Result |
 |---|---:|---|---|
@@ -69,16 +70,20 @@ How the two rounds ran:
 - **A check after the final benchmark:** 300 unused 2023 posts, 1,500 calls,
   $0.06. It tested whether better-designed step questions could beat direct.
   Each setup's answers were combined by a small logistic regression that never
-  saw the post it scored, and direct was put through the same step so the
-  comparison is fair. None beat direct, and the extra questions cost up to
+  saw the post it scored. Direct was put through the same step so the
+  comparison is fair: every setup, direct included, gets the same
+  recalibration. None beat direct, whether scored at Reddit's verdict mix or
+  with all four verdicts weighted equally, and the extra questions cost up to
   1.5× more. Full tables: [steps-summary.md](runs/diagnostic/steps-summary.md);
   exact question wording: [`steps.py`](jevbench/steps.py).
 
-That check turned up one thing that did help: adjusting Jev's direct answers
-after the call to lean toward Reddit's real verdict mix improved its score
-(0.354 → 0.320 on the dev posts). That's post-processing, not a better
-question, and the chat models would need the same adjustment to be fair, so
-it's not in Part 2.
+That combining step is also why every step setup looks better than raw
+direct (0.354 on these posts): the gain comes from the recalibration, not from
+the extra questions. Recalibrating direct alone gives 0.320, as good as any
+setup. It's not a free win, though. Scored at Reddit's mix, the recalibrated
+models almost never predict ESH or NAH (0–2% recall); they gain by betting on
+the common verdicts. It's post-processing, the chat models would need the
+same adjustment to be fair, and it's not in Part 2.
 
 ## Part 2: the best Jev setup vs. LLMs
 
@@ -109,9 +114,11 @@ How to read the table:
 | Gemma 4 26B-A4B, local | 0.588 [0.539, 0.636] | 58.3% [54.3, 62.3] | 44.4% | 1.57 s | not billed |
 | *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
 
-- **Sonnet 5 was best; Jev was a close second.** Sonnet's lead is 0.025
-  (95% CI 0.003 to 0.046), small but not noise. Jev beat both GPT-5 nano
-  settings and both local models.
+- **Sonnet 5 was best; Jev was a close second.** Sonnet's Brier lead is
+  0.025 (95% CI 0.003 to 0.046). That clears the 95% interval, but not a
+  Bonferroni correction for the five comparisons with Jev, so treat it as
+  borderline. On log loss, Sonnet's lead is clearer and does survive the
+  correction. Jev beat both GPT-5 nano settings and both local models.
 - **Jev was 6× faster than Sonnet, not 40–200×.** Its median call took 0.39 s,
   inside TypeSafe's 70–500 ms claim, and it was 62× cheaper than Sonnet, and
   3.9× faster and 1.5× cheaper than GPT-5 nano. TypeSafe's comparison was
