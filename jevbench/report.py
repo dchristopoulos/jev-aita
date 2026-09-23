@@ -169,6 +169,12 @@ def baseline_accuracy(recs: list[dict]) -> float:
 
 def distribution(r: dict) -> dict[str, float] | None:
     """Return only a complete, usable four-verdict distribution."""
+    # Declared in docs/METHODOLOGY.md before any such run: in logs that keep
+    # raw_output (runs after the final benchmark), a malformed direct answer
+    # scores as a uniform forecast, so failing to answer can't beat answering.
+    # The final logs lack raw_output and keep their published policy.
+    if r.get("arm") == "monolithic" and r.get("parse_failed") and "raw_output" in r:
+        return {v: 1 / len(VERDICTS) for v in VERDICTS}
     probs = (r.get("choices") or {}).get("verdict", {}).get("probabilities")
     if probs is None and {"poster_at_fault", "other_at_fault"} <= set(r.get("probs") or {}):
         try:

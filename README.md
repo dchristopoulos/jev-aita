@@ -1,10 +1,10 @@
 # Jev vs. LLMs on Reddit's "Am I the Asshole?"
 
-**Bottom line:** on the main metric (Brier score weighted to Reddit's real
-verdict mix), Jev came second of seven model configurations, behind Sonnet 5:
-0.369 vs. 0.344. Sonnet's lead is borderline once you account for multiple
-comparisons, and on unweighted Brier the two are tied (Jev 0.556, Sonnet
-0.563). Jev
+**Bottom line:** on the main metric (Brier score weighted to the verdict mix
+of the 1,839 eligible 2025 posts), Jev came second of seven model
+configurations, behind Sonnet 5: 0.369 vs. 0.344. Sonnet's lead is borderline
+once you account for multiple comparisons, and on unweighted Brier there's no
+clear difference (Jev 0.556, Sonnet 0.563). Jev
 cost 1/62 as much as Sonnet and was 6.3× faster, not the "40x-200x faster"
 TypeSafe claims.
 
@@ -140,14 +140,14 @@ How to read the table:
   better (0.410 vs. 0.415), but inconclusive (−0.005, 95% CI −0.033 to
   +0.022). Every model missed more than half of the ESH and NAH posts.
 
-**Is Sonnet's lead just calibration?** A follow-up check, with its plan pushed
-to GitHub before it ran, gave every model the same recalibration (a small
-regression fitted on the other posts) and compared again, with no new API calls.
-Sonnet's lead shrank from 0.025 to 0.007 (95% CI −0.021 to +0.007), so
-Sonnet's lead may be at least partly calibration. The catch: recalibrated,
-every model stops predicting ESH and NAH, winning by matching Reddit's 74% NTA
-mix. The headline uses the raw answers. Plan and results:
-[RECALIBRATION_PLAN.md](docs/RECALIBRATION_PLAN.md).
+**Does post-processing narrow Sonnet's lead?** In a planned follow-up using
+the saved answers, with no new API calls, each configuration got the same
+cross-fitted regression. Sonnet's weighted Brier lead fell from 0.025 to 0.007
+(95% post-bootstrap CI −0.021 to +0.007). The regression can change verdict
+choices, so this does not isolate calibration. Both models improved on NTA
+posts and got worse on YTA, ESH and NAH posts; neither recalibrated model chose
+ESH or NAH. The main table still scores their original answers.
+[Plan and results](docs/RECALIBRATION_PLAN.md).
 
 Local models ran as 4-bit MLX builds on one laptop; Qwen's 4 malformed answers
 count as wrong. More metrics, confusion matrices and calibration are in the

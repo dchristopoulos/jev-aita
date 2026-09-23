@@ -115,14 +115,48 @@ partly calibration**. That does not show the two are equal.
   0.352, close to Jev's 0.339; GPT-5 nano minimal ends at 0.410, about the
   base-rate forecast (0.415). Much of the raw spread between models was
   calibration.
-- **Secondary, fit only on the 300 development posts:** Jev reaches 0.337,
-  slightly better than raw Sonnet (0.344; difference +0.008, 95% CI −0.013 to
-  +0.028, inconclusive). Sonnet has no development answers, so it could not get
-  the same treatment; this is not a fair comparison with Sonnet, only evidence
-  that the Jev recalibration carries over from other posts.
+- **Secondary transfer check:** fitting Jev's regression on 300 separate 2023
+  posts gives 0.337 on the 2025 posts, versus 0.369 for Jev's raw answers.
+  After this adjustment Jev chooses ESH or NAH for no post. The exploratory
+  comparison with raw Sonnet is +0.008 for Sonnet minus Jev (95% CI −0.013 to
+  +0.028). Sonnet has no corresponding development answers to recalibrate, so
+  this comparison cannot rank the two adjusted workflows.
 
-**A note on the intervals.** The raw difference here is −0.025 [−0.048,
-−0.004]; the headline reports [−0.046, −0.003]. The method and seed are the
-same; this script resamples posts in log order, the report in sorted order.
-Rerun in sorted order it matches the headline exactly. Interval endpoints
-therefore carry about ±0.002 of bootstrap noise.
+**A note on the intervals.** The raw paired interval here is [−0.048,
+−0.004], while the main report prints [−0.046, −0.003]. Both use 2,000 draws
+and seed 0. This script supplies losses in log order; the main report supplies
+them in post-ID order, so the seeded resamples differ. Sorting by post ID
+reproduces the main interval. The point estimate is identical.
+
+## Post-hoc audit addendum
+
+Added after an external audit of the results above. Nothing above "Results"
+has changed. Two passages in "Results" were reworded after the audit (the
+secondary transfer bullet and the note on the intervals); the original wording
+is in commit `d2ea058`.
+
+**What the regression does.** It is fitted on all four probabilities, so it
+can change which verdict a model picks, not only how confident it is. It
+changed 107 of Jev's 770 choices and 36 of Sonnet's. Both models' mean Brier
+improved on NTA posts (Jev 0.191 → 0.098, Sonnet 0.135 → 0.093) and got worse
+on YTA, ESH and NAH posts; all of the weighted improvement comes from NTA. So
+this check does not isolate miscalibration as the cause of the narrowed gap.
+
+**What the interval covers.** The primary interval conditions on the ten
+fitted recalibrators and resamples their saved out-of-fold losses. It does not
+include variation from refitting them, choosing another fold assignment, or
+making new model calls. With fold seeds 0, 1, 2 and 3, the Sonnet-minus-Jev
+point difference was −0.0071, −0.0086, −0.0082 and −0.0077. These checks
+support the reported point estimate, not equivalence, and not the performance
+of a fixed recalibrator on new posts.
+
+**Class weights.** The frozen code calculates class weights from all 770
+labels before forming training folds, so held-out labels slightly influence
+their training weights. Recalculating the weights within each training fold,
+with everything else fixed, changed the Sonnet-minus-Jev point difference from
+−0.007061 to −0.007081. Future cross-fitting should calculate weights on
+training rows only.
+
+**Timing.** GitHub's activity log shows the plan pushed at 10:12:11 UTC and
+the results at 10:14:10 UTC. That verifies the order of the pushes. The time
+the analysis was run (10:12:22 UTC) comes from the author's own record.

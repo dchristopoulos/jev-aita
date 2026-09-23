@@ -211,3 +211,11 @@ def test_malformed_answers_are_wrong_but_not_calibrated():
                                      "probabilities": {}}
     row = headline_table(by_arm(recs)).splitlines()[-1]
     assert "| 66.7% |" in row and "| 0.000 |" in row   # 2 of 3 right, perfect ECE on the rest
+
+
+def test_new_malformed_answers_score_as_uniform_but_old_ones_stay_excluded():
+    new = {"arm": "monolithic", "parse_failed": True, "raw_output": "garbage",
+           "choices": {"verdict": {"choice": UNPARSED_CHOICE, "probabilities": {}}}}
+    old = {k: v for k, v in new.items() if k != "raw_output"}
+    assert distribution(new) == {"yta": 0.25, "nta": 0.25, "esh": 0.25, "nah": 0.25}
+    assert distribution(old) is None
