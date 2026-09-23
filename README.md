@@ -103,16 +103,16 @@ How to read the table:
 
 | Model | Weighted Brier ↓ [95% post-bootstrap CI] | Weighted top-1 [95% post-bootstrap CI] | Macro recall | Median call | $ per 1,000 posts |
 |---|---:|---:|---:|---:|---:|
+| *Later check: Jev direct, fitted on 2023* | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% | 0.39 s | $0.037 |
 | Sonnet 5 | 0.344 [0.321, 0.370] | 76.9% [74.5, 79.1] | 36.1% | 2.46 s | $2.291 |
+| *Later check: Jev five yes/no, fitted on 2023* | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% | 0.57 s | $0.044 |
 | **Jev, direct question** | 0.369 [0.344, 0.398] | 75.4% [72.7, 77.8] | 37.4% | 0.39 s | $0.037 |
 | Qwen 3.6 35B-A3B, local | 0.410 [0.382, 0.437] | 75.3% [73.3, 77.2] | 30.3% | 1.62 s | not billed |
+| *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
 | GPT-5 nano, low effort | 0.480 [0.454, 0.509] | 66.1% [62.7, 69.4] | 35.5% | 4.83 s | $0.165 |
 | Jev, two questions | 0.515 [0.497, 0.535] | 62.6% [59.6, 65.5] | 31.6% | 0.38 s | $0.037 |
 | GPT-5 nano, minimal effort | 0.569 [0.552, 0.585] | 57.2% [53.7, 60.8] | 25.9% | 1.53 s | $0.056 |
 | Gemma 4 26B-A4B, local | 0.588 [0.539, 0.636] | 58.3% [54.3, 62.3] | 44.4% | 1.57 s | not billed |
-| *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
-| *Later check: Jev direct, fitted on 2023* | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% | 0.39 s | $0.037 |
-| *Later check: Jev five yes/no, fitted on 2023* | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% | 0.57 s | $0.044 |
 
 - **Among the original raw answers, Sonnet 5 led and Jev direct was second.** Sonnet's Brier lead is
   0.025 (95% CI 0.003 to 0.046). That clears the 95% interval, but not a
