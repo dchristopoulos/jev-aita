@@ -1,11 +1,11 @@
 # Jev vs. LLMs on Reddit's "Am I the Asshole?"
 
-**Bottom line:** Of seven setups, Jev came second, behind Sonnet 5 (Brier
-score 0.369 vs. 0.344; lower is better). Jev's median call was 6.3× faster than
-Sonnet's, and 62× cheaper. That's fast, but not the "40x-200x faster" TypeSafe
-claims.
+**Bottom line:** In the original seven-setup benchmark, Jev came second,
+behind Sonnet 5 (Brier score 0.369 vs. 0.344; lower is better). Jev's median
+call was 6.3× faster than Sonnet's, and 62× cheaper. That's fast, but not
+the "40x-200x faster" TypeSafe claims.
 
-![Weighted Brier score with 95% intervals for each model, against a no-model baseline](docs/headline.svg)
+![Weighted Brier scores with 95% intervals for the original runs and two later adjusted Jev results](docs/headline.svg)
 
 [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) is
 TypeSafe's "System One" model. It doesn't write text: you give it a situation
@@ -285,7 +285,9 @@ No key or network needed. This regenerates every table and chart from the
 committed logs:
 
 ```bash
-python -m jevbench.report runs/final-*.jsonl --priors data/final-ucb-2025.source.json --chart docs/headline.svg
+python -m jevbench.report runs/final-*.jsonl \
+  --priors data/final-ucb-2025.source.json \
+  --chart docs/headline.svg --five-followup runs/followup-yesno5-2025.jsonl
 ```
 
 It rewrites `docs/results.md` without one section (Reddit's verdict against

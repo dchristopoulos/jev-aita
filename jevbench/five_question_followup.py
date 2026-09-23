@@ -53,7 +53,8 @@ def arm_rows(recs: list[dict], arm: str, count: int) -> dict[str, dict]:
     return {r["item_id"]: r for r in rows}
 
 
-def evaluate(dev: list[dict], direct: list[dict], five: list[dict], priors: dict) -> str:
+def evaluate(dev: list[dict], direct: list[dict], five: list[dict], priors: dict,
+             chart_rows: list[tuple] | None = None) -> str:
     dev_one = arm_rows(dev, "monolithic", 300)
     dev_five = arm_rows(dev, "yesno5", 300)
     raw = arm_rows(direct, "monolithic", 770)
@@ -114,6 +115,10 @@ def evaluate(dev: list[dict], direct: list[dict], five: list[dict], priors: dict
         lines.append(f"| {name} | {b:.3f} [{blo:.3f}, {bhi:.3f}] | "
                      f"{a:.1%} [{alo:.1%}, {ahi:.1%}] | {macro:.1%} | "
                      f"{latency:.2f} s | ${cost:.3f} |")
+        if chart_rows is not None and name != "Direct, raw":
+            chart_name = ("Jev · one question, follow-up adjustment" if name.startswith("Direct")
+                          else "Jev · five yes/no, follow-up adjustment")
+            chart_rows.append((b, blo, bhi, chart_name, cost, latency, False))
         if name != "Direct, raw":
             rare[name] = " / ".join(
                 f"{sum(hits[i] for i in ids if truth[i] == v) / sum(truth[i] == v for i in ids):.1%}"

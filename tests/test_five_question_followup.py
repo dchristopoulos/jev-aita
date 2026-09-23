@@ -18,12 +18,17 @@ def test_analysis_reproduces_the_raw_direct_row_with_synthetic_five_question_ans
     # Synthetic values exercise the analysis; they are not a five-question result.
     five = [{**examples[n % len(examples)], "item_id": r["item_id"],
              "verdict_true": r["verdict_true"]} for n, r in enumerate(originals)]
-    table = evaluate(dev, direct, five, json.loads(PRIORS.read_text())["eligible_mix"])
+    chart_rows = []
+    table = evaluate(dev, direct, five, json.loads(PRIORS.read_text())["eligible_mix"], chart_rows)
     assert "| Direct, raw | 0.369 [0.344, 0.398] | 75.4% [72.7%, 77.8%]" in table
     assert "| Direct, fitted on 2023 | 0.337" in table
     assert "ESH / NAH recall: Direct, fitted on 2023:" in table
     assert "Five yes/no, fitted on 2023:" in table
     assert "Paired weighted Brier difference" in table
+    assert len(chart_rows) == 2
+    assert chart_rows[0][3] == "Jev · one question, follow-up adjustment"
+    assert chart_rows[1][3] == "Jev · five yes/no, follow-up adjustment"
+    assert round(chart_rows[0][0], 3) == 0.337
 
 
 def test_incomplete_answers_are_rejected():

@@ -549,7 +549,7 @@ def reliability_svg(groups: dict[tuple[str, str], list[dict]], w: int = 700, h: 
 
 
 def headline_svg(groups: dict[tuple[str, str], list[dict]], priors: dict[str, float],
-                 w: int = 820) -> str:
+                 w: int = 900, followup_rows: list[tuple] | None = None) -> str:
     """Weighted Brier with 95% intervals, best first, against the no-model forecast.
 
     Each row also prints cost and median latency, so the chart carries the
@@ -565,6 +565,7 @@ def headline_svg(groups: dict[tuple[str, str], list[dict]], priors: dict[str, fl
         cost = sum(r["cost_usd"] for r in recs) / len(recs) * 1000
         p50 = percentile([r["latency_s"] for r in recs], 0.5)
         rows.append((mean, lo, hi, label(model, arm), cost, p50, model.startswith("local/")))
+    rows.extend(followup_rows or [])
     rows.sort()
     any_recs = next(iter(groups.values()))
     total = sum(priors.values())
@@ -572,7 +573,7 @@ def headline_svg(groups: dict[tuple[str, str], list[dict]], priors: dict[str, fl
     base = multiclass_scores([prior] * len(any_recs), [r["verdict_true"] for r in any_recs],
                              tuple(VERDICTS), priors)[0]
 
-    top, row_h, left, right = 92, 34, 250, 270
+    top, row_h, left, right = 112, 34, 315, 270
     n = len(rows)
     h = top + row_h * n + 56
     x0, x1 = 0.30, 0.65
@@ -581,15 +582,16 @@ def headline_svg(groups: dict[tuple[str, str], list[dict]], priors: dict[str, fl
     parts = [
         _svg_open(w, h),
         f'<text x="16" y="26" fill="{AXIS}" font-size="16" font-weight="600">'
-        f'Which model forecasts the Reddit verdict best? Lower is better.</text>',
-        f'<text x="16" y="46" fill="{AXIS}" font-size="12">Population-weighted four-class '
-        f'Brier score with 95% bootstrap interval, {len(any_recs)} Reddit AITA posts '
-        f'from 2025.</text>',
-        f'<circle cx="22" cy="63" r="5" fill="{COLORS[0]}"/>'
-        f'<text x="32" y="67" fill="{AXIS}" font-size="12">whole interval beats the no-model '
-        f'forecast</text>'
-        f'<circle cx="292" cy="63" r="5" fill="{AXIS}"/>'
-        f'<text x="302" y="67" fill="{AXIS}" font-size="12">does not</text>',
+        f'Weighted Brier on {len(any_recs)} Reddit AITA posts. Lower is better.</text>',
+        f'<text x="16" y="46" fill="{AXIS}" font-size="12">Population-weighted '
+        f'four-class score with 95% post-bootstrap intervals; 2025 posts.</text>',
+        (f'<text x="16" y="66" fill="{AXIS}" font-size="12">Follow-up rows use '
+         f'2023-trained adjustments; 2025 results were already known.</text>'
+         if followup_rows else ''),
+        f'<circle cx="22" cy="83" r="5" fill="{COLORS[0]}"/>'
+        f'<text x="32" y="87" fill="{AXIS}" font-size="12">interval below baseline</text>'
+        f'<circle cx="235" cy="83" r="5" fill="{AXIS}"/>'
+        f'<text x="245" y="87" fill="{AXIS}" font-size="12">not below</text>',
     ]
     for x, name in cols:
         parts.append(f'<text x="{x}" y="{top - 8}" fill="{AXIS}" font-size="12" '
@@ -679,6 +681,8 @@ def main() -> int:
     ap.add_argument("--svg", type=Path, default=Path("docs/reliability.svg"))
     ap.add_argument("--chart", type=Path,
                     help="also write the headline Brier chart here (needs --priors)")
+    ap.add_argument("--five-followup", type=Path,
+                    help="add the 2023-adjusted Jev follow-up to the headline chart")
     ap.add_argument("--md", type=Path, default=Path("docs/results.md"),
                     help="also write the tables here, so a run's output is kept")
     ap.add_argument("--priors", type=Path,
@@ -702,10 +706,17 @@ def main() -> int:
             ap.error("--priors needs positive counts for nta, yta, esh, and nah")
     if args.chart and priors is None:
         ap.error("--chart needs --priors")
+    if args.five_followup and not args.chart:
+        ap.error("--five-followup needs --chart")
+    followup_rows: list[tuple] = []
+    if args.five_followup:
+        from .five_question_followup import DEV, DIRECT, check_manifest, evaluate
+        check_manifest(args.five_followup)
+        evaluate(load(*DEV), load(DIRECT), load(args.five_followup), priors, followup_rows)
     args.svg.parent.mkdir(parents=True, exist_ok=True)
     args.svg.write_text(reliability_svg(groups))
     if args.chart:
-        args.chart.write_text(headline_svg(groups, priors))
+        args.chart.write_text(headline_svg(groups, priors, followup_rows=followup_rows))
 
     source = ([json.loads(line) for line in args.source_raw.read_text().splitlines() if line]
               if args.source_raw else None)

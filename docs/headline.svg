@@ -1,60 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="820" height="386" viewBox="0 0 820 386" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="13">
-<text x="16" y="26" fill="#8b949e" font-size="16" font-weight="600">Which model forecasts the Reddit verdict best? Lower is better.</text>
-<text x="16" y="46" fill="#8b949e" font-size="12">Population-weighted four-class Brier score with 95% bootstrap interval, 770 Reddit AITA posts from 2025.</text>
-<circle cx="22" cy="63" r="5" fill="#2f81f7"/><text x="32" y="67" fill="#8b949e" font-size="12">whole interval beats the no-model forecast</text><circle cx="292" cy="63" r="5" fill="#8b949e"/><text x="302" y="67" fill="#8b949e" font-size="12">does not</text>
-<text x="590" y="84" fill="#8b949e" font-size="12" text-anchor="end">Brier</text>
-<text x="690" y="84" fill="#8b949e" font-size="12" text-anchor="end">$ / 1k posts</text>
-<text x="785" y="84" fill="#8b949e" font-size="12" text-anchor="end">median call</text>
-<line x1="250.0" y1="92" x2="250.0" y2="330" stroke="#8b949e" stroke-opacity="0.25"/>
-<text x="250.0" y="348" fill="#8b949e" text-anchor="middle" font-size="12">0.3</text>
-<line x1="335.7" y1="92" x2="335.7" y2="330" stroke="#8b949e" stroke-opacity="0.25"/>
-<text x="335.7" y="348" fill="#8b949e" text-anchor="middle" font-size="12">0.4</text>
-<line x1="421.4" y1="92" x2="421.4" y2="330" stroke="#8b949e" stroke-opacity="0.25"/>
-<text x="421.4" y="348" fill="#8b949e" text-anchor="middle" font-size="12">0.5</text>
-<line x1="507.1" y1="92" x2="507.1" y2="330" stroke="#8b949e" stroke-opacity="0.25"/>
-<text x="507.1" y="348" fill="#8b949e" text-anchor="middle" font-size="12">0.6</text>
-<line x1="348.5" y1="88" x2="348.5" y2="330" stroke="#8b949e" stroke-dasharray="5 4" stroke-width="1.5"/>
-<text x="348.5" y="368" fill="#8b949e" text-anchor="middle" font-size="12">no-model forecast from base rates (0.415)</text>
-<text x="236" y="113.0" fill="#8b949e" text-anchor="end">Sonnet 5 · direct</text>
-<line x1="267.7" y1="109.0" x2="310.2" y2="109.0" stroke="#2f81f7" stroke-width="3" stroke-linecap="round"/>
-<circle cx="288.1" cy="109.0" r="6" fill="#2f81f7"/>
-<text x="590" y="113.0" fill="#8b949e" font-size="13" text-anchor="end">0.344</text>
-<text x="690" y="113.0" fill="#8b949e" font-size="13" text-anchor="end">$2.291</text>
-<text x="785" y="113.0" fill="#8b949e" font-size="13" text-anchor="end">2.46 s</text>
-<text x="236" y="147.0" fill="#8b949e" text-anchor="end" font-weight="700">Jev · direct</text>
-<line x1="288.0" y1="143.0" x2="333.6" y2="143.0" stroke="#2f81f7" stroke-width="3" stroke-linecap="round"/>
-<circle cx="309.1" cy="143.0" r="6" fill="#2f81f7"/>
-<text x="590" y="147.0" fill="#8b949e" font-size="13" text-anchor="end">0.369</text>
-<text x="690" y="147.0" fill="#8b949e" font-size="13" text-anchor="end">$0.037</text>
-<text x="785" y="147.0" fill="#8b949e" font-size="13" text-anchor="end">0.39 s</text>
-<text x="236" y="181.0" fill="#8b949e" text-anchor="end">Qwen 3.6 35B-A3B (local) · direct</text>
-<line x1="320.3" y1="177.0" x2="367.4" y2="177.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
-<circle cx="344.0" cy="177.0" r="6" fill="#8b949e"/>
-<text x="590" y="181.0" fill="#8b949e" font-size="13" text-anchor="end">0.410</text>
-<text x="690" y="181.0" fill="#8b949e" font-size="13" text-anchor="end">not billed</text>
-<text x="785" y="181.0" fill="#8b949e" font-size="13" text-anchor="end">1.62 s</text>
-<text x="236" y="215.0" fill="#8b949e" text-anchor="end">GPT-5 nano (low effort) · direct</text>
-<line x1="381.6" y1="211.0" x2="429.0" y2="211.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
-<circle cx="404.6" cy="211.0" r="6" fill="#8b949e"/>
-<text x="590" y="215.0" fill="#8b949e" font-size="13" text-anchor="end">0.480</text>
-<text x="690" y="215.0" fill="#8b949e" font-size="13" text-anchor="end">$0.165</text>
-<text x="785" y="215.0" fill="#8b949e" font-size="13" text-anchor="end">4.83 s</text>
-<text x="236" y="249.0" fill="#8b949e" text-anchor="end" font-weight="700">Jev · two questions</text>
-<line x1="419.2" y1="245.0" x2="451.5" y2="245.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
-<circle cx="434.6" cy="245.0" r="6" fill="#8b949e"/>
-<text x="590" y="249.0" fill="#8b949e" font-size="13" text-anchor="end">0.515</text>
-<text x="690" y="249.0" fill="#8b949e" font-size="13" text-anchor="end">$0.037</text>
-<text x="785" y="249.0" fill="#8b949e" font-size="13" text-anchor="end">0.38 s</text>
-<text x="236" y="283.0" fill="#8b949e" text-anchor="end">GPT-5 nano (minimal effort) · direct</text>
-<line x1="466.2" y1="279.0" x2="494.4" y2="279.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
-<circle cx="480.8" cy="279.0" r="6" fill="#8b949e"/>
-<text x="590" y="283.0" fill="#8b949e" font-size="13" text-anchor="end">0.569</text>
-<text x="690" y="283.0" fill="#8b949e" font-size="13" text-anchor="end">$0.056</text>
-<text x="785" y="283.0" fill="#8b949e" font-size="13" text-anchor="end">1.53 s</text>
-<text x="236" y="317.0" fill="#8b949e" text-anchor="end">Gemma 4 26B-A4B (local) · direct</text>
-<line x1="454.5" y1="313.0" x2="538.0" y2="313.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
-<circle cx="496.8" cy="313.0" r="6" fill="#8b949e"/>
-<text x="590" y="317.0" fill="#8b949e" font-size="13" text-anchor="end">0.588</text>
-<text x="690" y="317.0" fill="#8b949e" font-size="13" text-anchor="end">not billed</text>
-<text x="785" y="317.0" fill="#8b949e" font-size="13" text-anchor="end">1.57 s</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="474" viewBox="0 0 900 474" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="13">
+<text x="16" y="26" fill="#8b949e" font-size="16" font-weight="600">Weighted Brier on 770 Reddit AITA posts. Lower is better.</text>
+<text x="16" y="46" fill="#8b949e" font-size="12">Population-weighted four-class score with 95% post-bootstrap intervals; 2025 posts.</text>
+<text x="16" y="66" fill="#8b949e" font-size="12">Follow-up rows use 2023-trained adjustments; 2025 results were already known.</text>
+<circle cx="22" cy="83" r="5" fill="#2f81f7"/><text x="32" y="87" fill="#8b949e" font-size="12">interval below baseline</text><circle cx="235" cy="83" r="5" fill="#8b949e"/><text x="245" y="87" fill="#8b949e" font-size="12">not below</text>
+<text x="670" y="104" fill="#8b949e" font-size="12" text-anchor="end">Brier</text>
+<text x="770" y="104" fill="#8b949e" font-size="12" text-anchor="end">$ / 1k posts</text>
+<text x="865" y="104" fill="#8b949e" font-size="12" text-anchor="end">median call</text>
+<line x1="315.0" y1="112" x2="315.0" y2="418" stroke="#8b949e" stroke-opacity="0.25"/>
+<text x="315.0" y="436" fill="#8b949e" text-anchor="middle" font-size="12">0.3</text>
+<line x1="405.0" y1="112" x2="405.0" y2="418" stroke="#8b949e" stroke-opacity="0.25"/>
+<text x="405.0" y="436" fill="#8b949e" text-anchor="middle" font-size="12">0.4</text>
+<line x1="495.0" y1="112" x2="495.0" y2="418" stroke="#8b949e" stroke-opacity="0.25"/>
+<text x="495.0" y="436" fill="#8b949e" text-anchor="middle" font-size="12">0.5</text>
+<line x1="585.0" y1="112" x2="585.0" y2="418" stroke="#8b949e" stroke-opacity="0.25"/>
+<text x="585.0" y="436" fill="#8b949e" text-anchor="middle" font-size="12">0.6</text>
+<line x1="418.5" y1="108" x2="418.5" y2="418" stroke="#8b949e" stroke-dasharray="5 4" stroke-width="1.5"/>
+<text x="418.5" y="456" fill="#8b949e" text-anchor="middle" font-size="12">no-model forecast from base rates (0.415)</text>
+<text x="301" y="133.0" fill="#8b949e" text-anchor="end" font-weight="700">Jev · one question, follow-up adjustment</text>
+<line x1="334.2" y1="129.0" x2="363.5" y2="129.0" stroke="#2f81f7" stroke-width="3" stroke-linecap="round"/>
+<circle cx="348.3" cy="129.0" r="6" fill="#2f81f7"/>
+<text x="670" y="133.0" fill="#8b949e" font-size="13" text-anchor="end">0.337</text>
+<text x="770" y="133.0" fill="#8b949e" font-size="13" text-anchor="end">$0.037</text>
+<text x="865" y="133.0" fill="#8b949e" font-size="13" text-anchor="end">0.39 s</text>
+<text x="301" y="167.0" fill="#8b949e" text-anchor="end">Sonnet 5 · direct</text>
+<line x1="333.6" y1="163.0" x2="378.2" y2="163.0" stroke="#2f81f7" stroke-width="3" stroke-linecap="round"/>
+<circle cx="355.0" cy="163.0" r="6" fill="#2f81f7"/>
+<text x="670" y="167.0" fill="#8b949e" font-size="13" text-anchor="end">0.344</text>
+<text x="770" y="167.0" fill="#8b949e" font-size="13" text-anchor="end">$2.291</text>
+<text x="865" y="167.0" fill="#8b949e" font-size="13" text-anchor="end">2.46 s</text>
+<text x="301" y="201.0" fill="#8b949e" text-anchor="end" font-weight="700">Jev · five yes/no, follow-up adjustment</text>
+<line x1="343.4" y1="197.0" x2="369.6" y2="197.0" stroke="#2f81f7" stroke-width="3" stroke-linecap="round"/>
+<circle cx="356.0" cy="197.0" r="6" fill="#2f81f7"/>
+<text x="670" y="201.0" fill="#8b949e" font-size="13" text-anchor="end">0.346</text>
+<text x="770" y="201.0" fill="#8b949e" font-size="13" text-anchor="end">$0.044</text>
+<text x="865" y="201.0" fill="#8b949e" font-size="13" text-anchor="end">0.57 s</text>
+<text x="301" y="235.0" fill="#8b949e" text-anchor="end" font-weight="700">Jev · direct</text>
+<line x1="354.9" y1="231.0" x2="402.8" y2="231.0" stroke="#2f81f7" stroke-width="3" stroke-linecap="round"/>
+<circle cx="377.1" cy="231.0" r="6" fill="#2f81f7"/>
+<text x="670" y="235.0" fill="#8b949e" font-size="13" text-anchor="end">0.369</text>
+<text x="770" y="235.0" fill="#8b949e" font-size="13" text-anchor="end">$0.037</text>
+<text x="865" y="235.0" fill="#8b949e" font-size="13" text-anchor="end">0.39 s</text>
+<text x="301" y="269.0" fill="#8b949e" text-anchor="end">Qwen 3.6 35B-A3B (local) · direct</text>
+<line x1="388.8" y1="265.0" x2="438.2" y2="265.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
+<circle cx="413.8" cy="265.0" r="6" fill="#8b949e"/>
+<text x="670" y="269.0" fill="#8b949e" font-size="13" text-anchor="end">0.410</text>
+<text x="770" y="269.0" fill="#8b949e" font-size="13" text-anchor="end">not billed</text>
+<text x="865" y="269.0" fill="#8b949e" font-size="13" text-anchor="end">1.62 s</text>
+<text x="301" y="303.0" fill="#8b949e" text-anchor="end">GPT-5 nano (low effort) · direct</text>
+<line x1="453.2" y1="299.0" x2="503.0" y2="299.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
+<circle cx="477.3" cy="299.0" r="6" fill="#8b949e"/>
+<text x="670" y="303.0" fill="#8b949e" font-size="13" text-anchor="end">0.480</text>
+<text x="770" y="303.0" fill="#8b949e" font-size="13" text-anchor="end">$0.165</text>
+<text x="865" y="303.0" fill="#8b949e" font-size="13" text-anchor="end">4.83 s</text>
+<text x="301" y="337.0" fill="#8b949e" text-anchor="end" font-weight="700">Jev · two questions</text>
+<line x1="492.7" y1="333.0" x2="526.5" y2="333.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
+<circle cx="508.9" cy="333.0" r="6" fill="#8b949e"/>
+<text x="670" y="337.0" fill="#8b949e" font-size="13" text-anchor="end">0.515</text>
+<text x="770" y="337.0" fill="#8b949e" font-size="13" text-anchor="end">$0.037</text>
+<text x="865" y="337.0" fill="#8b949e" font-size="13" text-anchor="end">0.38 s</text>
+<text x="301" y="371.0" fill="#8b949e" text-anchor="end">GPT-5 nano (minimal effort) · direct</text>
+<line x1="542.0" y1="367.0" x2="571.6" y2="367.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
+<circle cx="557.4" cy="367.0" r="6" fill="#8b949e"/>
+<text x="670" y="371.0" fill="#8b949e" font-size="13" text-anchor="end">0.569</text>
+<text x="770" y="371.0" fill="#8b949e" font-size="13" text-anchor="end">$0.056</text>
+<text x="865" y="371.0" fill="#8b949e" font-size="13" text-anchor="end">1.53 s</text>
+<text x="301" y="405.0" fill="#8b949e" text-anchor="end">Gemma 4 26B-A4B (local) · direct</text>
+<line x1="529.8" y1="401.0" x2="617.4" y2="401.0" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
+<circle cx="574.2" cy="401.0" r="6" fill="#8b949e"/>
+<text x="670" y="405.0" fill="#8b949e" font-size="13" text-anchor="end">0.588</text>
+<text x="770" y="405.0" fill="#8b949e" font-size="13" text-anchor="end">not billed</text>
+<text x="865" y="405.0" fill="#8b949e" font-size="13" text-anchor="end">1.57 s</text>
 </svg>

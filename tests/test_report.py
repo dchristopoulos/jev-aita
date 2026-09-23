@@ -203,6 +203,11 @@ def test_charts_are_wellformed_svg():
     groups = by_arm(_run() + _run(model=CHAT, right=False))
     ET.fromstring(reliability_svg(groups))
     ET.fromstring(headline_svg(groups, PRIORS))
+    chart = headline_svg(groups, PRIORS, followup_rows=[
+        (0.337, 0.321, 0.354, "Jev · one question, follow-up adjustment", 0.037, 0.39, False)])
+    ET.fromstring(chart)
+    assert "2023-trained adjustments" in chart
+    assert "Jev · one question, follow-up adjustment" in chart
 
 
 def test_malformed_answers_are_wrong_but_not_calibrated():
