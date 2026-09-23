@@ -177,3 +177,57 @@ found Jev's expected calibration error (0.171) worse than GPT-5 nano's (0.125)
 on 300 toxicity-rated comments; it does not bear on AITA probabilities. Both
 sets of logs are in [`runs/dev-2023/`](../runs/dev-2023/), and the code that
 produced them is at git tag `dev-2023`.
+
+## Choosing Jev's question setup
+
+The final run asks Jev one Choice question. Two rounds support that choice.
+
+**Before the final run.** The 200-post development runs above compared the
+direct question with 8 yes/no questions combined by a hand-written rule, and
+with those 8 plus the direct question and a severity Score. The 8-question
+version scored 41.5% against 53.0% for direct. A logistic regression on the
+same 8 answers reached 51.5%, so the combining rule, not the questions, was
+at fault. The 10-question version agreed with direct on 194 of 200 posts
+(55.0% vs. 53.0%, McNemar p = 0.22).
+
+**After the final run.** A check on 300 further 2023 posts tested four
+redesigned setups, each one request per post
+([`steps.py`](../jevbench/steps.py) has the exact wording):
+
+- 5 yes/no questions: within their rights, harsh manner, other side
+  unreasonable, clash of fair needs, poster downplaying their part.
+- 2 severity Scores, one for each side, from "not wrong" to "caused real harm".
+- 5 mixed steps: the two Scores, a Choice for what kind of thing the poster
+  did, a Choice for what kind of conflict it is, and a Score for how one-sided
+  the account is.
+- The 5 mixed steps plus the direct question.
+
+The direct question also ran on the same posts. Each setup's answers were
+turned into four verdict probabilities by a multinomial logistic regression
+(standardised features, L2 0.1, fixed step count), scored with 10-fold
+cross-validation stratified by verdict, so no post was scored by a model fitted
+on it. The direct answer went through the same regression, so every setup had
+the same recalibration. Scores were weighted to the 2025 population mix, as in
+the main results, and separately with all four verdicts weighted equally.
+
+No setup beat the direct question. Against the refitted direct answer, the
+weighted Brier differences were −0.008 [−0.026, +0.010] for 5 yes/no, +0.009
+for 2 Scores, +0.001 for 5 mixed steps and +0.002 with the verdict added. The
+extra questions raised the billed cost by up to 1.5×. The refit itself
+improved the direct answer's weighted Brier from 0.354 to 0.320; that is a
+calibration effect, not a better question, and it is not applied in the final
+comparison because the chat models would need the same treatment.
+Full tables: [`steps-summary.md`](../runs/diagnostic/steps-summary.md).
+
+**Posts.** The 300 posts come from the older `OsamaBsher/AITA-Reddit-Dataset`,
+chosen because only 6 ESH and 10 NAH posts from the 2025 source remain outside
+the holdout. They share no IDs with the 2025 holdout, the 200-post
+development sample or the pilot, and none had been sent to Jev before. They
+were drawn, 35/35/15/15 per 100 posts, from a local 770-post file: an
+800-post stratified sample made on 2026-09-22 with the `dev-2023` sampler and
+seed 20260923, minus the 30 posts the current verdict-leak filter rejects
+(that filter step is verified to reproduce the 770 exactly). The code for the
+800-post draw was not committed at the time and rebuilding it was not
+verified, so the pool cannot be re-drawn from this repository alone. The 300
+post IDs and every answer are in the committed logs, which is what the tables
+are computed from.

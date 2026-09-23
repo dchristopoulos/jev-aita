@@ -1,6 +1,6 @@
 # Step-question setups, 300 development posts
 
-Exploratory, not part of the final results. Posts come from the 2023 pool (`data/final-clean-20260923.jsonl`, never sent to Jev before): 100 drawn by `python -m jevbench.steps sample`, then 200 more by `sample --size 200 --out data/steps-dev-extra-200.jsonl --exclude data/steps-dev-100.jsonl`. Step answers are combined by logistic regression scored out of fold. Regenerate with `python -m jevbench.steps fit runs/diagnostic/steps-dev-*.jsonl [--balanced]`.
+Exploratory, not part of the final results. Posts come from the 2023 pool (`data/final-clean-20260923.jsonl`, never sent to Jev before; its provenance, and why it can't be re-drawn from this repo, is in [METHODOLOGY.md](../../docs/METHODOLOGY.md#choosing-jevs-question-setup)): 100 drawn by `python -m jevbench.steps sample`, then 200 more by `sample --size 200 --out data/steps-dev-extra-200.jsonl --exclude data/steps-dev-100.jsonl`. Step answers are combined by logistic regression scored out of fold. Regenerate with `python -m jevbench.steps fit runs/diagnostic/steps-dev-*.jsonl [--balanced]`.
 
 ## Weighted to the 2025 population mix
 

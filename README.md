@@ -23,6 +23,23 @@ four verdicts, scored against Reddit's verdict.
 I have no affiliation with TypeSafe and paid for every call myself (about
 $2.75 in total).
 
+## What counts as "correct"
+
+Whether someone is the asshole is an opinion, so there is no true answer
+here. What this benchmark measures is narrower: **can a model predict the
+verdict Reddit gave?** The target is the post's official verdict flair, which
+AITA sets from the verdict in the top-voted comment. A model is "right" when
+its most likely verdict matches that flair. The Brier score also gives partial
+credit: 70% on the flair's verdict scores better than 30%.
+
+Reddit's verdict is itself noisy. One top comment decides it, even when
+the other commenters lean elsewhere. On 704 of the 770 posts, the flair
+matches the verdict most commenters gave (weighted by upvotes); on the other
+66, the upvoted comments leaned toward a different verdict. Scoring only the
+704 clearer posts tells the same story: Jev 63.4% vs. Sonnet 64.3% plain
+accuracy ([details](docs/results.md#flair-and-comment-disagreement)). "Not enough info"
+posts are left out, since that's not a verdict on anyone.
+
 ## Part 1: finding the best way to ask Jev
 
 Jev can take several questions per call, of three types: **yes/no** (returns
@@ -114,9 +131,8 @@ Every model was asked for four probabilities: Jev through its native Choice
 question, chat models through a prompt with the same verdict definitions that
 returns JSON. Most people would ask a chat model for one label instead, so this
 says nothing about label-only accuracy, or about speed and cost for a one-word
-answer. It also says nothing about who is actually right: the target is
-Reddit's verdict, which matches the commenters' upvote-weighted verdict on 704
-of 770 posts.
+answer. And, as [above](#what-counts-as-correct), it says nothing about who is
+actually right, only how well each model predicts Reddit.
 
 ## Method details
 
@@ -223,7 +239,8 @@ python -m jevbench.show 1hvkncw
 ```
 
 Leave out the id for the first post, add `--live` to ask Jev again, or
-`--full` for the whole post. With the posts rebuilt, adding
+`--short` to print only the post's first lines (this works with `--random` and
+`--text` too). With the posts rebuilt, adding
 `--source-raw data/ucb-2025-raw.jsonl` to the report command restores its
 missing section.
 

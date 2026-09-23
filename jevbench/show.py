@@ -93,7 +93,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("id", nargs="?", help="post id (default: the first post in the sample)")
     ap.add_argument("--live", action="store_true", help="call Jev now instead of reading the final log")
-    ap.add_argument("--full", action="store_true", help="print the whole post, not the first lines")
+    ap.add_argument("--short", action="store_true", help="print only the first lines of the post")
     ap.add_argument("--random", action="store_true",
                     help="fetch a random real post with Reddit's verdict from Hugging Face; "
                          "always a live call")
@@ -144,10 +144,10 @@ def main() -> int:
     print(rule(f"POST {item.id}", f"{len(item.body)} chars"))
     print(c("  " + item.title, "1"))
     body = wrap(item.text)
-    shown = body if args.full or len(body) <= 12 else body[:10]
+    shown = body[:10] if args.short and len(body) > 12 else body
     print("\n".join(c("  " + line, "2") for line in shown))
     if len(shown) < len(body):
-        print(c(f"  … {len(body) - len(shown)} more lines (--full to show)", "2;3"))
+        print(c(f"  … {len(body) - len(shown)} more lines (drop --short to show)", "2;3"))
     if truth:
         print(f"\n  Forum verdict: {c(truth.upper(), '1')} ({VERDICTS[truth]})")
     print(f"{'' if truth else chr(10)}  Model: {model} · answers from {source}")
