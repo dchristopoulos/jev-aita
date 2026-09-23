@@ -7,6 +7,13 @@ the "40x-200x faster" TypeSafe claims.
 
 ![Weighted Brier scores with 95% intervals for the original runs and two later adjusted Jev results](docs/headline.svg)
 
+The chart includes two later Jev follow-ups. I did not retrain Jev itself:
+a small logistic regression learned from its answers to 300 labeled 2023
+posts, then adjusted its probabilities on the 770 test posts. That gives Jev
+the lowest score shown (0.337), but Sonnet's 0.344 is unadjusted, so it is
+not a like-for-like win. A separate analysis gave every model the same kind
+of adjustment; Sonnet still led by 0.007, an inconclusive gap.
+
 [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) is
 TypeSafe's "System One" model. It doesn't write text: you give it a situation
 and a question, and in one fast call it returns a probability for each answer.
