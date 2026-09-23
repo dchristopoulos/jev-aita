@@ -57,3 +57,18 @@ def test_runner_refuses_to_overwrite_a_log(monkeypatch, tmp_path):
 def test_arms_are_limited_to_the_models_they_were_designed_for(monkeypatch, tmp_path, models, arm):
     with pytest.raises(SystemExit):
         _main(monkeypatch, tmp_path, "--models", *models, "--arms", arm)
+
+
+def test_records_keep_the_unparsed_reply():
+    from types import SimpleNamespace
+    from jevbench.bench import _record
+    from jevbench.data import Item
+    item = Item("p1", "t", "x", "nta", 0, [])
+    base = dict(resolved_model="m", request_id="r", n_questions=1, probs={}, choices={},
+                latency_s=0.1, attempts=1, prompt_tokens=1, completion_tokens=1,
+                total_tokens=2, cost_usd=0.0, billed_usd=0.0, parse_failed=True)
+    chat = SimpleNamespace(**base, raw={"choices": [{"message": {"content": "NTA 90%"}}]})
+    jev = SimpleNamespace(**base, raw={"answers": {"verdict": {"choice": "nta"}}})
+    assert _record("openai/gpt-5-nano", "monolithic", item, chat, {})["raw_output"] == "NTA 90%"
+    assert _record("~typesafe/jev-latest", "monolithic", item, jev, {})["raw_output"] == {
+        "verdict": {"choice": "nta"}}

@@ -1,8 +1,12 @@
 # Jev vs. LLMs on Reddit's "Am I the Asshole?"
 
-**Bottom line:** set up the best way I found, Jev came second of seven,
-behind Sonnet 5, at 1/60th of Sonnet's cost and 6× its speed. It was not the
-"40x-200x faster" TypeSafe claims.
+**Bottom line:** on the main metric (Brier score weighted to Reddit's real
+verdict mix), Jev came second of seven model configurations, behind Sonnet 5:
+0.369 vs. 0.344. Sonnet's lead is borderline once you account for multiple
+comparisons, and on unweighted Brier the two are tied (Jev 0.556, Sonnet
+0.563). Jev
+cost 1/62 as much as Sonnet and was 6.3× faster, not the "40x-200x faster"
+TypeSafe claims.
 
 [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) is
 TypeSafe's "System One" model. It doesn't write text: you give it a situation
@@ -46,35 +50,38 @@ Jev can take several questions per call, of three types: **yes/no** (returns
 one probability), **Choice** (a probability for each option) and **Score** (a
 probability for each level of a scale). So "is the poster the asshole?" can be
 asked directly, or split into smaller judgments that a combining step turns
-into a verdict. I tried eight setups, and **no split-up version beat asking
-directly** (in the 300-post check, compared with direct after the same
-combining step; details below):
+into a verdict. I tried eight setups, and **none showed a clear advantage
+over asking directly**. In the 300-post check, 5 yes/no questions had the best
+point estimate (Brier −0.008), but its 95% interval included zero (−0.026 to
++0.010). These were exploratory comparisons under one fixed regression and
+cross-validation setup:
 
 | Setup | Questions per call | What Jev is asked | Result |
 |---|---:|---|---|
-| **Direct** | 1 Choice | Which verdict would the subreddit reach? (the four verdicts, defined) | **best or tied for best; used in Part 2** |
+| **Direct** | 1 Choice | Which verdict would the subreddit reach? (the four verdicts, defined) | **the baseline; used in Part 2** |
 | **2023 · 8 facts** | 8 yes/no | Did the poster break an agreement / overreact / ignore someone's boundaries / deceive? Did the other side behave badly / escalate? Are the stakes high? Is the poster leaving things out? | 41.5% vs. 53.0% accuracy for direct, with a hand-written rule; 51.5% with a fitted one |
 | **2023 · everything** | 10 | the 8 facts + direct + a 4-level "how badly did the poster behave?" Score | 55.0% vs. 53.0%; the two agreed on 194 of 200 posts (p = 0.22) |
 | **Two questions** | 2 yes/no | Would readers blame the poster? Would they blame at least one other person? Answers multiplied into four verdicts | ran in Part 2 for comparison: much worse |
-| **5 yes/no** | 5 yes/no | Was the poster within their rights? Did they act harshly? Did someone else act unreasonably? Is it a clash of two fair needs? Is the poster downplaying their part? | same as direct (Brier −0.008 [−0.026, +0.010]) |
-| **2 severity scores** | 2 Score | How wrong was the poster? How wrong was the other party? (none / minor lapse / owes an apology / caused real harm) | slightly worse (+0.009) |
-| **5 mixed steps** | 3 Score + 2 Choice | the two severity scores; what the poster did (reasonable & considerate / reasonable but harsh / unreasonable / mostly reacting); what kind of conflict (one side wrong / both bad / fair clash / misunderstanding); how one-sided the account is | same as direct (+0.001) |
-| **5 steps + direct** | 6 | the five steps plus the direct question | same as direct (+0.002) |
+| **5 yes/no** | 5 yes/no | Was the poster within their rights? Did they act harshly? Did someone else act unreasonably? Is it a clash of two fair needs? Is the poster downplaying their part? | no clear difference (Brier −0.008 [−0.026, +0.010]) |
+| **2 severity scores** | 2 Score | How wrong was the poster? How wrong was the other party? (none / minor lapse / owes an apology / caused real harm) | no clear difference (+0.009 [−0.006, +0.024]) |
+| **5 mixed steps** | 3 Score + 2 Choice | the two severity scores; what the poster did (reasonable & considerate / reasonable but harsh / unreasonable / mostly reacting); what kind of conflict (one side wrong / both bad / fair clash / misunderstanding); how one-sided the account is | no clear difference (+0.001) |
+| **5 steps + direct** | 6 | the five steps plus the direct question | no clear difference (+0.002) |
 
 How the two rounds ran:
 
 - **2023 development runs, before the final benchmark:** 200 posts from an
-  older dataset. Direct matched or beat the split-up versions, so the final
-  run used it. The 8-facts setup failed because of its hand-written combining
-  rule, not its questions.
+  older dataset. No split-up version clearly beat direct, so the final run
+  used it. Most of the 8-facts deficit came from its hand-written combining
+  rule: replacing it with a fitted one raised accuracy from 41.5% to 51.5%,
+  against 53.0% for direct.
 - **A check after the final benchmark:** 300 unused 2023 posts, 1,500 calls,
   $0.06. It tested whether better-designed step questions could beat direct.
   Each setup's answers were combined by a small logistic regression that never
   saw the post it scored. Direct was put through the same step so the
   comparison is fair: every setup, direct included, gets the same
-  recalibration. None beat direct, whether scored at Reddit's verdict mix or
-  with all four verdicts weighted equally, and the extra questions cost up to
-  1.5× more. Full tables: [steps-summary.md](runs/diagnostic/steps-summary.md);
+  recalibration. None clearly beat direct, whether scored at Reddit's verdict
+  mix or with all four verdicts weighted equally, and the extra questions cost
+  up to 1.5× more. Full tables: [steps-summary.md](runs/diagnostic/steps-summary.md);
   exact question wording: [`steps.py`](jevbench/steps.py).
 
 That combining step is also why every step setup looks better than raw
@@ -101,9 +108,11 @@ How to read the table:
 - **Top-1** is plain accuracy: was the most likely verdict the right one?
 - **Macro recall** averages the hit rate of each of the four verdicts, so a
   model that always says NTA gets 25%.
-- Brackets are 95% confidence intervals.
+- Brackets are 95% intervals from resampling posts. They measure variation
+  across posts, not between repeated calls: each model ran once, and at
+  temperature 0 a restarted GPT-5 nano run repeated only 64 of 103 answers.
 
-| Model | Weighted Brier ↓ [95% CI] | Weighted top-1 [95% CI] | Macro recall | Median call | $ per 1,000 posts |
+| Model | Weighted Brier ↓ [95% post-bootstrap CI] | Weighted top-1 [95% post-bootstrap CI] | Macro recall | Median call | $ per 1,000 posts |
 |---|---:|---:|---:|---:|---:|
 | Sonnet 5 | 0.344 [0.321, 0.370] | 76.9% [74.5, 79.1] | 36.1% | 2.46 s | $2.291 |
 | **Jev, direct question** | 0.369 [0.344, 0.398] | 75.4% [72.7, 77.8] | 37.4% | 0.39 s | $0.037 |
@@ -114,19 +123,22 @@ How to read the table:
 | Gemma 4 26B-A4B, local | 0.588 [0.539, 0.636] | 58.3% [54.3, 62.3] | 44.4% | 1.57 s | not billed |
 | *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
 
-- **Sonnet 5 was best; Jev was a close second.** Sonnet's Brier lead is
+- **Sonnet 5 was best on this metric; Jev was a close second.** Sonnet's Brier lead is
   0.025 (95% CI 0.003 to 0.046). That clears the 95% interval, but not a
   Bonferroni correction for the five comparisons with Jev, so treat it as
   borderline. On log loss, Sonnet's lead is clearer and does survive the
   correction. Jev beat both GPT-5 nano settings and both local models.
 - **Jev was 6× faster than Sonnet, not 40–200×.** Its median call took 0.39 s,
-  inside TypeSafe's 70–500 ms claim, and it was 62× cheaper than Sonnet, and
-  3.9× faster and 1.5× cheaper than GPT-5 nano. TypeSafe's comparison was
+  inside TypeSafe's 70–500 ms claim, and it was 62× cheaper than Sonnet. Against
+  GPT-5 nano it was 3.9× faster and 1.5× cheaper than minimal effort, and 12×
+  faster and 4.5× cheaper than low effort. TypeSafe's comparison was
   against a model reasoning at its default level; the chat models here did
   little or no reasoning, which makes them much faster.
 - **Base rates are hard to beat.** Always answering NTA is right 74% of the
-  time, and only Sonnet and Jev beat guessing from base rates. Every model
-  misses more than half of the ESH and NAH posts.
+  time. Only Sonnet and Jev beat the base-rate forecast with paired intervals
+  that exclude zero (−0.070 and −0.046). Qwen's point estimate was slightly
+  better (0.410 vs. 0.415), but inconclusive (−0.005, 95% CI −0.033 to
+  +0.022). Every model missed more than half of the ESH and NAH posts.
 
 Local models ran as 4-bit MLX builds on one laptop; Qwen's 4 malformed answers
 count as wrong. More metrics, confusion matrices and calibration are in the
@@ -134,9 +146,13 @@ count as wrong. More metrics, confusion matrices and calibration are in the
 
 ## What this does not show
 
-Every model was asked for four probabilities: Jev through its native Choice
-question, chat models through a prompt with the same verdict definitions that
-returns JSON. Most people would ask a chat model for one label instead, so this
+This compares probability-producing configurations, not each model's best
+possible classifier. Every model was asked for four probabilities: Jev through
+its native Choice question, chat models through a prompt with the same verdict
+definitions that returns JSON. The wording differs slightly: Jev is asked which
+verdict the subreddit would reach, the chat models to predict the official
+flair. The local models ran as 4-bit builds with reasoning off and don't stand
+for their full-precision or hosted versions. Most people would ask a chat model for one label instead, so this
 says nothing about label-only accuracy, or about speed and cost for a one-word
 answer. And, as [above](#what-counts-as-correct), it says nothing about who is
 actually right, only how well each model predicts Reddit.
@@ -181,6 +197,8 @@ Face dataset, and asks Jev live (two calls, about $0.0001):
 ```bash
 python -m jevbench.show --random
 ```
+
+One live run, for illustration (not saved; numbers vary between calls):
 
 ```
 ━━ POST 1ilu5ya ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3071 chars
@@ -231,7 +249,7 @@ python -m jevbench.steps fit runs/diagnostic/steps-dev-*.jsonl
 
 To see a post from the benchmark next to Jev's logged answer and Reddit's
 verdict, first rebuild the 770 posts. This downloads the dataset from the same
-Hugging Face API `--random` uses (about a minute), refuses it if it doesn't
+Hugging Face API `--random` uses, refuses it if it doesn't
 match the pinned hash, and draws the same sample:
 
 ```bash

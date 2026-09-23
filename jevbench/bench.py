@@ -119,6 +119,11 @@ def _record(model: str, arm: str, item: Item, a, questions: dict) -> dict:
         "billed_usd": a.billed_usd,
         "provider": str(a.raw.get("provider", "")),
         "parse_failed": a.parse_failed,
+        # What the model actually returned, before parsing, so a parser change
+        # or a malformed answer can be checked later: Jev's typed answers, or
+        # the chat reply text.
+        "raw_output": (a.raw.get("answers") if "answers" in a.raw else
+                       ((a.raw.get("choices") or [{}])[0].get("message") or {}).get("content")),
         "error": None,
     }
 

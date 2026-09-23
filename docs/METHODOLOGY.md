@@ -43,6 +43,13 @@ sees the same text, so they affect all models alike.
 
 ## Questions and chat prompts
 
+The primary comparison is between probability-producing configurations, not
+between each model's best possible classifier prompt. Top-1 accuracy, latency
+and cost from the probability prompt include the cost of generating four
+numbers. Jev and the chat models also get slightly different target wording
+(below), and the local models are 4-bit quantized builds with reasoning off,
+so their results do not stand for full-precision or hosted versions.
+
 Jev's direct arm sends one native Choice question: which verdict would the
 subreddit reach? Each of YTA, NTA, ESH, and NAH has a one-line definition.
 Its second arm asks two symmetric yes/no questions about blame, then computes
@@ -106,6 +113,11 @@ not include:
   restarted Qwen run matched the stopped one on 174 of 176, but GPT-5 nano at
   low effort matched on only 64 of 103, and two label-only nano runs agreed on
   35 of 55. Differences near the edge of an interval could change on a rerun.
+- **A finite-population correction.** The intervals treat the eligible posts
+  as a sample from a broader population of comparable AITA posts. If the
+  target were exactly the 1,839 eligible posts, a finite-population correction
+  would narrow them; for the Sonnet-minus-Jev Brier difference, by roughly
+  0.005 at each end. The conclusions do not change.
 - **Multiple comparisons.** The paired table makes five comparisons with
   Jev. Sonnet's weighted Brier advantage has an interval that ends at −0.003,
   so it would not survive a Bonferroni correction. Its log-loss advantage
@@ -124,7 +136,15 @@ quantity as a class probability.
 Malformed or missing chat probabilities remain failures and count against
 top-1 accuracy and recall. Probability scores use valid distributions only and
 show their coverage. Only Qwen produced malformed answers (4 of 770); scoring
-them as the base-rate forecast instead leaves its weighted Brier at 0.410.
+them as the base-rate forecast instead leaves its weighted Brier at 0.410,
+and so does scoring them as a uniform 25% forecast (0.4097 → 0.4100).
+
+For future runs, a malformed answer will be scored as a uniform 25% forecast
+in Brier and log loss, so a model can't gain by failing to answer. This rule is
+declared here, before any such run; it is not applied to the final logs above.
+Runs from now on also save each model's unparsed reply (`raw_output`), which
+the final logs lack, so parser changes can be checked against what the model
+actually said.
 
 The consensus subset repeats sample accuracy and sample Brier on posts where
 the official flair matches the vote-weighted four-verdict plurality. Selecting
@@ -186,8 +206,8 @@ The final run asks Jev one Choice question. Two rounds support that choice.
 direct question with 8 yes/no questions combined by a hand-written rule, and
 with those 8 plus the direct question and a severity Score. The 8-question
 version scored 41.5% against 53.0% for direct. A logistic regression on the
-same 8 answers reached 51.5%, so the combining rule, not the questions, was
-at fault. The 10-question version agreed with direct on 194 of 200 posts
+same 8 answers reached 51.5%, so most of the deficit came from the combining
+rule rather than the questions. The 10-question version agreed with direct on 194 of 200 posts
 (55.0% vs. 53.0%, McNemar p = 0.22).
 
 **After the final run.** A check on 300 further 2023 posts tested four
@@ -210,12 +230,17 @@ on it. The direct answer went through the same regression, so every setup had
 the same recalibration. Scores were weighted to the 2025 population mix, as in
 the main results, and separately with all four verdicts weighted equally.
 
-No setup beat the direct question. Against the refitted direct answer, the
+No setup clearly beat the direct question. Against the refitted direct answer, the
 weighted Brier differences were −0.008 [−0.026, +0.010] for 5 yes/no, +0.009
 for 2 Scores, +0.001 for 5 mixed steps and +0.002 with the verdict added. With
 all four verdicts weighted equally, no difference excluded zero either; the
 closest was −0.009 [−0.033, +0.016] for the steps plus the verdict. The extra
-questions raised the billed cost by up to 1.5×.
+questions raised the billed cost by up to 1.5×. These comparisons are
+exploratory: the regression uses one fixed L2 penalty and one fold assignment,
+and the intervals resample the out-of-fold losses without refitting, so they
+leave out that uncertainty. With no penalty, the 5 yes/no difference grows to
+−0.013 [−0.039, +0.015], still inside the noise; with a strong one (L2 = 1),
+both models collapse to always predicting NTA and the difference is zero.
 
 The comparison is against the refitted direct answer, not the raw one. Every
 step setup scores better than raw direct (0.354), but refitting direct alone
