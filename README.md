@@ -45,57 +45,42 @@ posts are left out, since that's not a verdict on anyone.
 
 ## Part 1: finding the best way to ask Jev
 
-Jev can take several questions per call, of three types: **yes/no** (returns
-one probability), **Choice** (a probability for each option) and **Score** (a
-probability for each level of a scale). So "is the poster the asshole?" can be
-asked directly, or split into smaller judgments that a combining step turns
-into a verdict. I tried eight setups, and **none showed a clear advantage
-over asking directly**. The closest, 5 yes/no questions, was within noise
-(Brier −0.008, 95% CI −0.026 to +0.010).
+Jev can answer one four-way **Choice** question or several **yes/no** and
+**Score** questions in one call. The main Jev setup used one direct Choice
+question: which verdict would the subreddit reach? Across eight tested setups,
+none showed a clear advantage over direct.
 
-<details>
-<summary><b>All 8 setups, what Jev was asked, and how each did</b></summary>
+Before the final benchmark, a 200-post development run found 53.0% accuracy
+for direct. Eight yes/no facts got 41.5% with a hand-written rule and 51.5%
+with a fitted rule. Ten questions, including the direct question, got 55.0%:
+four more correct posts than direct, an inconclusive difference (p = 0.22).
 
-These were exploratory comparisons under one fixed regression and
-cross-validation setup.
+After the final benchmark, an exploratory check used 300 unused 2023 posts.
+Every setup, direct included, had its answers combined by the same regression,
+fitted without the post it scored. Brier is lower when better; a negative
+difference favors the alternative. Accuracy is weighted to the eligible 2025
+verdict mix. These fitted scores are separate from the raw 2025 benchmark.
 
-| Setup | Questions per call | What Jev is asked | Result |
-|---|---:|---|---|
-| **Direct** | 1 Choice | Which verdict would the subreddit reach? (the four verdicts, defined) | **the baseline; used in Part 2** |
-| **2023 · 8 facts** | 8 yes/no | Did the poster break an agreement / overreact / ignore someone's boundaries / deceive? Did the other side behave badly / escalate? Are the stakes high? Is the poster leaving things out? | 41.5% vs. 53.0% accuracy for direct, with a hand-written rule; 51.5% with a fitted one |
-| **2023 · everything** | 10 | the 8 facts + direct + a 4-level "how badly did the poster behave?" Score | 55.0% vs. 53.0%; the two agreed on 194 of 200 posts (p = 0.22) |
-| **Two questions** | 2 yes/no | Would readers blame the poster? Would they blame at least one other person? Answers multiplied into four verdicts | ran in Part 2 for comparison: much worse |
-| **5 yes/no** | 5 yes/no | Was the poster within their rights? Did they act harshly? Did someone else act unreasonably? Is it a clash of two fair needs? Is the poster downplaying their part? | no clear difference (Brier −0.008 [−0.026, +0.010]) |
-| **2 severity scores** | 2 Score | How wrong was the poster? How wrong was the other party? (none / minor lapse / owes an apology / caused real harm) | no clear difference (+0.009 [−0.006, +0.024]) |
-| **5 mixed steps** | 3 Score + 2 Choice | the two severity scores; what the poster did (reasonable & considerate / reasonable but harsh / unreasonable / mostly reacting); what kind of conflict (one side wrong / both bad / fair clash / misunderstanding); how one-sided the account is | no clear difference (+0.001) |
-| **5 steps + direct** | 6 | the five steps plus the direct question | no clear difference (+0.002) |
+| Setup | Questions per call | Weighted Brier ↓ | Difference from direct | Weighted accuracy | Median call | $ per 1,000 posts |
+|---|---:|---:|---:|---:|---:|---:|
+| Direct, fitted | 1 | 0.320 | baseline | 79.3% | 525 ms | $0.034 |
+| Five yes/no | 5 | 0.312 | −0.008 | 80.6% | 529 ms | $0.040 |
+| Two severity scores | 2 | 0.329 | +0.009 | 80.0% | 526 ms | $0.035 |
+| Five mixed steps | 5 | 0.322 | +0.001 | 80.9% | 531 ms | $0.046 |
+| Five steps plus direct | 6 | 0.322 | +0.002 | 79.8% | 520 ms | $0.052 |
 
-</details>
+Five yes/no had the lowest point estimate, but its difference from direct was
+uncertain (95% CI −0.026 to +0.010). Extra questions barely changed call time
+and raised cost. Raw direct scored 0.354 on these 300 posts; fitting direct
+alone brought it to 0.320. That gain is from post-processing, not extra
+questions. The fitted setups almost never chose ESH or NAH (0–2% recall),
+because they favored common verdicts. No fitted adjustment is used in Part 2.
 
-How the two rounds ran:
-
-- **2023 development runs, before the final benchmark:** 200 posts from an
-  older dataset. No split-up version clearly beat direct, so the final run
-  used it. Most of the 8-facts deficit came from its hand-written combining
-  rule: replacing it with a fitted one raised accuracy from 41.5% to 51.5%,
-  against 53.0% for direct.
-- **A check after the final benchmark:** 300 unused 2023 posts, 1,500 calls,
-  $0.06. It tested whether better-designed step questions could beat direct.
-  Each setup's answers were combined by a small logistic regression that never
-  saw the post it scored. Direct was put through the same step so the
-  comparison is fair: every setup, direct included, gets the same
-  recalibration. None clearly beat direct, whether scored at Reddit's verdict
-  mix or with all four verdicts weighted equally, and the extra questions cost
-  up to 1.5× more. Full tables: [steps-summary.md](runs/diagnostic/steps-summary.md);
-  exact question wording: [`steps.py`](jevbench/steps.py).
-
-That combining step is also why every step setup looks better than raw
-direct (0.354 on these posts): the gain comes from the recalibration, not from
-the extra questions. Recalibrating direct alone gives 0.320, as good as any
-setup. It's not a free win, though. Scored at Reddit's mix, the recalibrated
-models almost never predict ESH or NAH (0–2% recall); they gain by betting on
-the common verdicts. It's post-processing, the chat models would need the
-same adjustment to be fair, and it's not in Part 2.
+The final benchmark also ran a separate two-yes/no setup, with its answers
+multiplied into four verdict probabilities. It scored 0.515 weighted Brier
+against 0.369 for direct. The [full development tables](runs/diagnostic/steps-summary.md),
+[later question wording](jevbench/steps.py), and [two-question wording](jevbench/questions.py)
+give the remaining detail.
 
 ## Part 2: the best Jev setup vs. LLMs
 
@@ -125,6 +110,11 @@ How to read the table:
 | GPT-5 nano, minimal effort | 0.569 [0.552, 0.585] | 57.2% [53.7, 60.8] | 25.9% | 1.53 s | $0.056 |
 | Gemma 4 26B-A4B, local | 0.588 [0.539, 0.636] | 58.3% [54.3, 62.3] | 44.4% | 1.57 s | not billed |
 | *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
+
+A [later five-question check](docs/FIVE_QUESTION_FOLLOWUP.md) on these same
+posts is planned. It will fit both five questions and direct on the saved 2023
+answers before scoring the 2025 posts. Results are pending; the table above is
+the original benchmark.
 
 - **Sonnet 5 was best on this metric; Jev was a close second.** Sonnet's Brier lead is
   0.025 (95% CI 0.003 to 0.046). That clears the 95% interval, but not a
@@ -197,13 +187,18 @@ Python 3.10+, standard library only. Clone the repo and run from its folder.
 Anything that asks Jev live needs an **OpenRouter API key**, because this repo
 calls Jev through OpenRouter. Create one at
 [openrouter.ai/keys](https://openrouter.ai/keys) and add a little credit; a
-dollar covers thousands of calls. Then copy `.env.example` to `.env` and paste
-the key in. Rebuilding the results from the logs needs no key.
+dollar covers thousands of calls. [OpenRouter's terms](https://openrouter.ai/terms)
+currently set a $5 minimum credit purchase, in US dollars, if you need to top
+up. That is prepaid credit, not the cost of one run. Then copy `.env.example`
+to `.env` and paste the key in. Rebuilding the results from the logs needs no
+key.
 
 ### Judge a real AITA post
 
 This pulls a random real post, with Reddit's verdict, from the same Hugging
-Face dataset, and asks Jev live (two calls, about $0.0001):
+Face dataset, and asks Jev live (two calls, about $0.0001). It shows both
+setups for comparison: Step 1 is the direct question used in the benchmark;
+Step 2 is the two-yes/no setup, which scored worse across the benchmark.
 
 ```bash
 python -m jevbench.show --random
