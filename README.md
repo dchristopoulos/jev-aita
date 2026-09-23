@@ -111,8 +111,10 @@ How to read the table:
 | GPT-5 nano, minimal effort | 0.569 [0.552, 0.585] | 57.2% [53.7, 60.8] | 25.9% | 1.53 s | $0.056 |
 | Gemma 4 26B-A4B, local | 0.588 [0.539, 0.636] | 58.3% [54.3, 62.3] | 44.4% | 1.57 s | not billed |
 | *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
+| *Later check: Jev direct, fitted on 2023* | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% | 0.39 s | $0.037 |
+| *Later check: Jev five yes/no, fitted on 2023* | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% | 0.57 s | $0.044 |
 
-- **Sonnet 5 was best on this metric; Jev was a close second.** Sonnet's Brier lead is
+- **Among the original raw answers, Sonnet 5 led and Jev direct was second.** Sonnet's Brier lead is
   0.025 (95% CI 0.003 to 0.046). That clears the 95% interval, but not a
   Bonferroni correction for the five comparisons with Jev, so treat it as
   borderline. On log loss, Sonnet's lead is clearer and does survive the
@@ -130,24 +132,14 @@ How to read the table:
   better (0.410 vs. 0.415), but inconclusive (−0.005, 95% CI −0.033 to
   +0.022). Every model missed more than half of the ESH and NAH posts.
 
-### Later check: five yes/no questions
-
-After the original benchmark, I ran the five-question setup on the same 770
-posts. I fitted its answers and the direct setup's answers using only the
-separate 300-post 2023 development set. Both rows below have the same fitted
-post-processing. They are separate from the original raw-answer table above.
-
-| Jev setup | Weighted Brier ↓ [95% post-bootstrap CI] | Weighted top-1 [95% post-bootstrap CI] | Macro recall | Median call | $ per 1,000 posts |
-|---|---:|---:|---:|---:|---:|
-| Direct, fitted on 2023 | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% | 0.39 s | $0.037 |
-| Five yes/no, fitted on 2023 | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% | 0.57 s | $0.044 |
-
-The five-question point estimate was 0.009 worse on weighted Brier than fitted
-direct (paired 95% CI −0.001 to +0.019), an inconclusive difference. Neither
-fitted setup predicted ESH or NAH correctly. The five-question run cost $0.0336
-for all 770 posts; its latency was measured later than direct's, so the two
-medians are descriptive. This follow-up uses already-seen 2025 labels, not a
-fresh holdout. [Plan, full results and run log](docs/FIVE_QUESTION_FOLLOWUP.md).
+The two later-check rows use the same fitted post-processing, trained on a
+separate 300-post 2023 set. They are not part of the original seven-way ranking.
+Five questions scored 0.009 worse than fitted direct on weighted Brier (paired
+95% CI −0.001 to +0.019), an inconclusive difference. Neither fitted setup
+predicted ESH or NAH correctly. The five-question run cost $0.0336 for all 770
+posts; its latency was measured later than direct's. The 2025 labels were
+already known when this follow-up was chosen, so this is not a fresh holdout.
+[Plan, full results and run log](docs/FIVE_QUESTION_FOLLOWUP.md).
 
 **Does post-processing narrow Sonnet's lead?** In a planned follow-up using
 the saved answers, with no new API calls, each configuration got the same
