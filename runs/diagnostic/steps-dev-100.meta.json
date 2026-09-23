@@ -1,0 +1,238 @@
+{
+  "started": "2026-09-23T11:28:17+0300",
+  "finished": "2026-09-23T11:32:52+0300",
+  "git_sha": "f3f2ef0",
+  "git_dirty": true,
+  "dataset": "ucberkeley-dlab/fragility-moral-judgment-llms",
+  "dataset_revision": "cb4c298cbfa93ce9cdf56685f12a55b0a6928110",
+  "sample_path": "data/steps-dev-100.jsonl",
+  "sample_sha256": "d9e7d8a4d42b30a8096c6f3b8ec274583e7515b946a1895049d967cce184dce8",
+  "code_sha256": "123285ef0089e410bf3948a6494f985dc86cb7f51e1091afeca08fcf62509ba0",
+  "n_posts": 100,
+  "verdict_mix": {
+    "nta": 35,
+    "yta": 35,
+    "esh": 15,
+    "nah": 15
+  },
+  "models": [
+    "~typesafe/jev-latest"
+  ],
+  "arms": [
+    "monolithic",
+    "yesno5",
+    "severity2",
+    "steps5",
+    "steps6"
+  ],
+  "questions_per_arm": {
+    "monolithic": 1,
+    "yesno5": 5,
+    "severity2": 2,
+    "steps5": 5,
+    "steps6": 6
+  },
+  "prompts": {
+    "jev/monolithic": {
+      "verdict": {
+        "type": "choice",
+        "instructions": "You are judging a post from r/AmItheAsshole. Which verdict would the subreddit reach about the poster?",
+        "criteria": {
+          "yta": "You're the asshole -- the poster is in the wrong",
+          "nta": "Not the asshole -- the other party is in the wrong",
+          "esh": "Everyone sucks here -- both sides behaved badly",
+          "nah": "No assholes here -- a genuine conflict, nobody misbehaved"
+        }
+      }
+    },
+    "jev/yesno5": {
+      "op_within_rights": {
+        "type": "noul",
+        "instructions": "Was the poster within their rights to want what they wanted?",
+        "criteria": {
+          "true": "What the poster wanted was reasonable and theirs to decide",
+          "false": "What the poster wanted was unreasonable or not theirs to decide"
+        }
+      },
+      "op_harsh_manner": {
+        "type": "noul",
+        "instructions": "Did the poster act harshly, rudely or excessively, whatever their reasons?",
+        "criteria": {
+          "true": "The way the poster acted was harsh, rude or out of proportion",
+          "false": "The poster acted in a measured, considerate way"
+        }
+      },
+      "other_unreasonable": {
+        "type": "noul",
+        "instructions": "Did another person in the story behave unreasonably, pushily or unfairly?",
+        "criteria": {
+          "true": "Someone else demanded, pressured or acted unfairly",
+          "false": "The other people behaved reasonably"
+        }
+      },
+      "fair_clash": {
+        "type": "noul",
+        "instructions": "Is this a clash between two reasonable needs, with nobody acting badly?",
+        "criteria": {
+          "true": "Both sides want something reasonable and nobody behaved badly",
+          "false": "At least one side behaved badly"
+        }
+      },
+      "op_spin": {
+        "type": "noul",
+        "instructions": "Is the poster leaving out or downplaying their own part?",
+        "criteria": {
+          "true": "The account is one-sided or vague about the poster's own conduct",
+          "false": "The account reads as complete and even-handed"
+        }
+      }
+    },
+    "jev/severity2": {
+      "op_severity": {
+        "type": "score",
+        "instructions": "How wrong was the poster's conduct in this conflict?",
+        "criteria": [
+          "Not wrong at all",
+          "A minor lapse most people would forgive",
+          "Clearly wrong: the poster owes an apology",
+          "Seriously wrong: the poster caused real harm or unfairness"
+        ]
+      },
+      "other_severity": {
+        "type": "score",
+        "instructions": "How wrong was the other party's conduct in this conflict?",
+        "criteria": [
+          "Not wrong at all",
+          "A minor lapse most people would forgive",
+          "Clearly wrong: the other party owes an apology",
+          "Seriously wrong: the other party caused real harm or unfairness"
+        ]
+      }
+    },
+    "jev/steps5": {
+      "op_severity": {
+        "type": "score",
+        "instructions": "How wrong was the poster's conduct in this conflict?",
+        "criteria": [
+          "Not wrong at all",
+          "A minor lapse most people would forgive",
+          "Clearly wrong: the poster owes an apology",
+          "Seriously wrong: the poster caused real harm or unfairness"
+        ]
+      },
+      "other_severity": {
+        "type": "score",
+        "instructions": "How wrong was the other party's conduct in this conflict?",
+        "criteria": [
+          "Not wrong at all",
+          "A minor lapse most people would forgive",
+          "Clearly wrong: the other party owes an apology",
+          "Seriously wrong: the other party caused real harm or unfairness"
+        ]
+      },
+      "op_kind": {
+        "type": "choice",
+        "instructions": "Which best describes what the poster did?",
+        "criteria": {
+          "reasonable_kind": "Wanted something reasonable and went about it considerately",
+          "reasonable_harsh": "Wanted something reasonable but went about it harshly or rudely",
+          "unreasonable": "Wanted something unreasonable or unfair to others",
+          "bystander": "Mostly reacted to others; did nothing notable themselves"
+        }
+      },
+      "conflict_kind": {
+        "type": "choice",
+        "instructions": "What kind of conflict is this?",
+        "criteria": {
+          "one_side": "One side is clearly in the wrong",
+          "both_bad": "Both sides behaved badly",
+          "fair_clash": "Two reasonable needs clash and nobody behaved badly",
+          "misunderstanding": "A misunderstanding or miscommunication more than a wrong"
+        }
+      },
+      "op_spin": {
+        "type": "score",
+        "instructions": "How one-sided is the poster's account of their own part?",
+        "criteria": [
+          "Even-handed",
+          "Somewhat favorable to the poster",
+          "Clearly spun in the poster's favor"
+        ]
+      }
+    },
+    "jev/steps6": {
+      "op_severity": {
+        "type": "score",
+        "instructions": "How wrong was the poster's conduct in this conflict?",
+        "criteria": [
+          "Not wrong at all",
+          "A minor lapse most people would forgive",
+          "Clearly wrong: the poster owes an apology",
+          "Seriously wrong: the poster caused real harm or unfairness"
+        ]
+      },
+      "other_severity": {
+        "type": "score",
+        "instructions": "How wrong was the other party's conduct in this conflict?",
+        "criteria": [
+          "Not wrong at all",
+          "A minor lapse most people would forgive",
+          "Clearly wrong: the other party owes an apology",
+          "Seriously wrong: the other party caused real harm or unfairness"
+        ]
+      },
+      "op_kind": {
+        "type": "choice",
+        "instructions": "Which best describes what the poster did?",
+        "criteria": {
+          "reasonable_kind": "Wanted something reasonable and went about it considerately",
+          "reasonable_harsh": "Wanted something reasonable but went about it harshly or rudely",
+          "unreasonable": "Wanted something unreasonable or unfair to others",
+          "bystander": "Mostly reacted to others; did nothing notable themselves"
+        }
+      },
+      "conflict_kind": {
+        "type": "choice",
+        "instructions": "What kind of conflict is this?",
+        "criteria": {
+          "one_side": "One side is clearly in the wrong",
+          "both_bad": "Both sides behaved badly",
+          "fair_clash": "Two reasonable needs clash and nobody behaved badly",
+          "misunderstanding": "A misunderstanding or miscommunication more than a wrong"
+        }
+      },
+      "op_spin": {
+        "type": "score",
+        "instructions": "How one-sided is the poster's account of their own part?",
+        "criteria": [
+          "Even-handed",
+          "Somewhat favorable to the poster",
+          "Clearly spun in the poster's favor"
+        ]
+      },
+      "verdict": {
+        "type": "choice",
+        "instructions": "You are judging a post from r/AmItheAsshole. Which verdict would the subreddit reach about the poster?",
+        "criteria": {
+          "yta": "You're the asshole -- the poster is in the wrong",
+          "nta": "Not the asshole -- the other party is in the wrong",
+          "esh": "Everyone sucks here -- both sides behaved badly",
+          "nah": "No assholes here -- a genuine conflict, nobody misbehaved"
+        }
+      }
+    }
+  },
+  "pricing_usd_per_mtok": {
+    "~typesafe/jev-latest": [
+      0.042,
+      0.0
+    ]
+  },
+  "budget_usd": 0.1,
+  "projected_usd": 0.015468,
+  "ok": 500,
+  "errors": 0,
+  "spend_usd": 0.02065,
+  "wall_s": 274.6,
+  "stopped_early": ""
+}

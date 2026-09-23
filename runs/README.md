@@ -40,6 +40,7 @@ logs moved to `diagnostic/`. Contents are unchanged.
 | `aborted-nano-low-2025.jsonl` | GPT-5 nano low, stopped after 104 of 770 posts, 1 parse failure |
 | `standard-choice-api-2025.jsonl`, `-tolerant-` | Label-only prompt, GPT-5 nano minimal only, first 55 and 83 posts; stopped when I lowered the spending limit |
 | `pilot-*` | 40-post pipeline check on posts from the old 2023 dataset (not the 200-post development sample), and an 8-post check of the two-question arm on the development sample |
+| `steps-dev-*.jsonl`, `steps-summary.md` | Five Jev setups (direct, 5 yes/no, 2 severity scores, 5 mixed steps, 5 steps + verdict) on 300 unused 2023 posts (100 + 200); see `jevbench/steps.py` |
 
 ## `dev-2023/`: development history
 

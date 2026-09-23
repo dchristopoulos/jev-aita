@@ -31,13 +31,16 @@ from .client import (LOCAL_PREFIX, PRICING, ApiError, FatalApiError, production_
 from .data import Item, load
 from .questions import balanced, monolithic
 from .sample_2025 import DATASET, REVISION
+from .steps import ARMS as STEP_ARMS
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data" / "final-ucb-2025.jsonl"
 RUNS = ROOT / "runs"
 
 # standard_choice is the chat-only single-label check; see docs/FINAL_PROTOCOL.md.
-ARMS = {"monolithic": monolithic, "balanced": balanced, "standard_choice": monolithic}
+ARMS = {"monolithic": monolithic, "balanced": balanced, "standard_choice": monolithic,
+        **STEP_ARMS}
+JEV_ONLY = {"balanced", *STEP_ARMS}
 # Cheap by default. Jev bills $0.042/M in and nothing out; gpt-5-nano is the
 # baseline that makes the cost claim awkward, which is the point of having it.
 # A frontier model costs ~50x the whole rest of the run -- opt in with --models.
@@ -75,7 +78,7 @@ def _prompts(models: list[str], arms: list[str]) -> dict:
         questions = ARMS[arm]()
         if any(m.startswith("~typesafe/") for m in models):
             out[f"jev/{arm}"] = questions
-        if arm != "balanced" and any(not m.startswith("~typesafe/") for m in models):
+        if arm not in JEV_ONLY and any(not m.startswith("~typesafe/") for m in models):
             prompt = standard_choice_prompt if arm == "standard_choice" else production_verdict_prompt
             out[f"chat/{arm}"] = prompt(questions["verdict"])
     return out
@@ -225,8 +228,8 @@ def main() -> int:
 
     if "standard_choice" in args.arms and any(m.startswith("~typesafe/") for m in args.models):
         ap.error("standard_choice is a chat-only prompt")
-    if "balanced" in args.arms and any(not m.startswith("~typesafe/") for m in args.models):
-        ap.error("balanced is a Jev-only arm")
+    if JEV_ONLY & set(args.arms) and any(not m.startswith("~typesafe/") for m in args.models):
+        ap.error(f"{', '.join(sorted(JEV_ONLY & set(args.arms)))}: Jev-only arms")
     if not args.data.exists():
         ap.error(f"{args.data} not found; build it with python -m jevbench.sample_2025")
     items = load(args.data, args.n)

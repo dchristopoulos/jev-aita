@@ -239,6 +239,14 @@ def _split_answers(
                 probabilities={str(k): float(v) for k, v in a.get("probabilities", {}).items()},
                 confidence=float(a["confidence"]),
             )
+        elif q["type"] == "score":
+            # Levels come back 0-indexed ("0".."n-1"), with a probability each,
+            # so a Score fits the Choice shape: `choice` holds the expected level.
+            choices[qid] = ChoiceAns(
+                choice=str(a["score"]),
+                probabilities={str(k): float(v) for k, v in a.get("probabilities", {}).items()},
+                confidence=float(a["confidence"]),
+            )
         else:
             raise ValueError(f"unknown question type {q['type']!r}")
     return probs, choices
