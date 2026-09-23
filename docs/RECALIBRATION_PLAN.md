@@ -68,4 +68,61 @@ Part 1 intervals they leave out the uncertainty from the fitting itself.
 
 ## Results
 
-Not yet run.
+Run on 2026-09-23 at 10:12 UTC, after the plan was pushed (GitHub records
+that push at 10:12:11 UTC, commit `9adaa0a`), with the code as committed.
+Output of `python -m jevbench.recalibrate`:
+
+#### Every configuration, recalibrated the same way
+
+| Configuration | Posts | Raw weighted Brier ↓ | Recalibrated ↓ [95% CI] | Change [95% CI] | ESH / NAH recall, raw → recalibrated |
+|---|---:|---:|---:|---:|---|
+| Jev · direct | 770 | 0.369 | 0.339 [0.324, 0.356] | -0.030 [-0.044, -0.016] | 3% → 0% / 11% → 0% |
+| Jev · two questions | 770 | 0.515 | 0.350 [0.336, 0.364] | -0.166 [-0.177, -0.154] | 32% → 0% / 7% → 0% |
+| Sonnet 5 · direct | 770 | 0.344 | 0.332 [0.317, 0.350] | -0.012 [-0.023, -0.002] | 2% → 0% / 4% → 0% |
+| GPT-5 nano (low effort) · direct | 770 | 0.480 | 0.386 [0.375, 0.398] | -0.094 [-0.114, -0.076] | 8% → 0% / 22% → 0% |
+| GPT-5 nano (minimal effort) · direct | 770 | 0.569 | 0.410 [0.405, 0.415] | -0.159 [-0.174, -0.144] | 3% → 0% / 0% → 0% |
+| Qwen 3.6 35B-A3B (local) · direct | 766 | 0.410 | 0.387 [0.375, 0.400] | -0.022 [-0.038, -0.007] | 0% → 0% / 0% → 0% |
+| Gemma 4 26B-A4B (local) · direct | 770 | 0.588 | 0.352 [0.340, 0.366] | -0.236 [-0.274, -0.196] | 17% → 0% / 42% → 0% |
+
+#### Primary: Sonnet minus Jev, weighted Brier
+
+| | Difference [95% CI] |
+|---|---:|
+| Raw (the headline) | -0.025 [-0.048, -0.004] |
+| Both recalibrated | -0.007 [-0.021, +0.007] |
+
+#### Secondary: Jev recalibrated on the 300 development posts only
+
+| | Weighted Brier ↓ [95% CI] | ESH / NAH recall |
+|---|---:|---|
+| Jev raw | 0.369 [0.344, 0.398] | 3% / 11% |
+| Jev, fit on development posts | 0.337 [0.321, 0.354] | 0% / 0% |
+| Sonnet raw | 0.344 [0.321, 0.370] | 2% / 4% |
+
+Sonnet raw minus Jev fit on development posts: +0.008 [-0.013, +0.028]
+
+**Reading, by the rule set above:** the recalibrated Sonnet-minus-Jev interval
+includes zero (−0.007, 95% CI −0.021 to +0.007), so **the gap may be at least
+partly calibration**. That does not show the two are equal.
+
+- **Recalibration helped every configuration, Sonnet least.** Sonnet improved
+  by 0.012, Jev by 0.030. Most of Jev's 0.025 raw gap to Sonnet closes.
+- **It works by giving up the rare verdicts.** After recalibration, every
+  configuration predicts ESH or NAH for no post (0% recall). Much of each gain
+  comes from matching Reddit's 74% NTA mix rather than from sharper judgments
+  of individual posts.
+- **Recalibration compresses the field.** Gemma goes from last (0.588) to
+  0.352, close to Jev's 0.339; GPT-5 nano minimal ends at 0.410, about the
+  base-rate forecast (0.415). Much of the raw spread between models was
+  calibration.
+- **Secondary, fit only on the 300 development posts:** Jev reaches 0.337,
+  slightly better than raw Sonnet (0.344; difference +0.008, 95% CI −0.013 to
+  +0.028, inconclusive). Sonnet has no development answers, so it could not get
+  the same treatment; this is not a fair comparison with Sonnet, only evidence
+  that the Jev recalibration carries over from other posts.
+
+**A note on the intervals.** The raw difference here is −0.025 [−0.048,
+−0.004]; the headline reports [−0.046, −0.003]. The method and seed are the
+same; this script resamples posts in log order, the report in sorted order.
+Rerun in sorted order it matches the headline exactly. Interval endpoints
+therefore carry about ±0.002 of bootstrap noise.

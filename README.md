@@ -140,6 +140,15 @@ How to read the table:
   better (0.410 vs. 0.415), but inconclusive (−0.005, 95% CI −0.033 to
   +0.022). Every model missed more than half of the ESH and NAH posts.
 
+**Is Sonnet's lead just calibration?** A follow-up check, with its plan pushed
+to GitHub before it ran, gave every model the same recalibration (a small
+regression fitted on the other posts) and compared again, with no new API calls.
+Sonnet's lead shrank from 0.025 to 0.007 (95% CI −0.021 to +0.007), so
+Sonnet's lead may be at least partly calibration. The catch: recalibrated,
+every model stops predicting ESH and NAH, winning by matching Reddit's 74% NTA
+mix. The headline uses the raw answers. Plan and results:
+[RECALIBRATION_PLAN.md](docs/RECALIBRATION_PLAN.md).
+
 Local models ran as 4-bit MLX builds on one laptop; Qwen's 4 malformed answers
 count as wrong. More metrics, confusion matrices and calibration are in the
 [full results](docs/results.md).
@@ -245,6 +254,12 @@ rebuild the same way:
 python -m jevbench.steps fit runs/diagnostic/steps-dev-*.jsonl
 ```
 
+And the recalibration check (about a minute, no key):
+
+```bash
+python -m jevbench.recalibrate
+```
+
 ### Replay a benchmark post
 
 To see a post from the benchmark next to Jev's logged answer and Reddit's
@@ -275,7 +290,7 @@ missing section.
 run's manifest records the exact prompts.
 
 ```
-jevbench/   runner, clients, metrics, report, viewer, step setups (stdlib only)
+jevbench/   runner, clients, metrics, report, viewer, step setups, recalibration (stdlib only)
 scripts/    prompt verification against billed tokens (needs tiktoken)
 runs/       final logs; diagnostic/ holds Part 1 and other runs; dev-2023/ the first round
 docs/       results, methodology, protocol and charts
