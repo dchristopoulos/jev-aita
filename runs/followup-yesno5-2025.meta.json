@@ -1,0 +1,84 @@
+{
+  "started": "2026-09-23T18:13:49+0300",
+  "finished": "2026-09-23T18:21:20+0300",
+  "git_sha": "4958c82",
+  "git_dirty": false,
+  "dataset": "ucberkeley-dlab/fragility-moral-judgment-llms",
+  "dataset_revision": "cb4c298cbfa93ce9cdf56685f12a55b0a6928110",
+  "sample_path": "data/final-ucb-2025.jsonl",
+  "sample_sha256": "2f8cae7c7bebe3c259efbe69664b463919a9db5b0db386d23a79d8892f82479d",
+  "code_sha256": "ca20e523884450506b23554f071b7ba17a17756902c230e8f09725e799ae665b",
+  "n_posts": 770,
+  "verdict_mix": {
+    "yta": 285,
+    "nta": 365,
+    "nah": 55,
+    "esh": 65
+  },
+  "models": [
+    "~typesafe/jev-latest"
+  ],
+  "arms": [
+    "yesno5"
+  ],
+  "questions_per_arm": {
+    "yesno5": 5
+  },
+  "prompts": {
+    "jev/yesno5": {
+      "op_within_rights": {
+        "type": "noul",
+        "instructions": "Was the poster within their rights to want what they wanted?",
+        "criteria": {
+          "true": "What the poster wanted was reasonable and theirs to decide",
+          "false": "What the poster wanted was unreasonable or not theirs to decide"
+        }
+      },
+      "op_harsh_manner": {
+        "type": "noul",
+        "instructions": "Did the poster act harshly, rudely or excessively, whatever their reasons?",
+        "criteria": {
+          "true": "The way the poster acted was harsh, rude or out of proportion",
+          "false": "The poster acted in a measured, considerate way"
+        }
+      },
+      "other_unreasonable": {
+        "type": "noul",
+        "instructions": "Did another person in the story behave unreasonably, pushily or unfairly?",
+        "criteria": {
+          "true": "Someone else demanded, pressured or acted unfairly",
+          "false": "The other people behaved reasonably"
+        }
+      },
+      "fair_clash": {
+        "type": "noul",
+        "instructions": "Is this a clash between two reasonable needs, with nobody acting badly?",
+        "criteria": {
+          "true": "Both sides want something reasonable and nobody behaved badly",
+          "false": "At least one side behaved badly"
+        }
+      },
+      "op_spin": {
+        "type": "noul",
+        "instructions": "Is the poster leaving out or downplaying their own part?",
+        "criteria": {
+          "true": "The account is one-sided or vague about the poster's own conduct",
+          "false": "The account reads as complete and even-handed"
+        }
+      }
+    }
+  },
+  "pricing_usd_per_mtok": {
+    "~typesafe/jev-latest": [
+      0.042,
+      0.0
+    ]
+  },
+  "budget_usd": 0.1,
+  "projected_usd": 0.02927,
+  "ok": 770,
+  "errors": 0,
+  "spend_usd": 0.03362,
+  "wall_s": 450.5,
+  "stopped_early": ""
+}

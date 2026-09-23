@@ -1,9 +1,9 @@
 # Jev vs. LLMs on Reddit's "Am I the Asshole?"
 
-**Bottom line:** on weighted Brier score (lower is better), Jev came a narrow
-second of seven configurations, behind Sonnet 5 (0.369 vs. 0.344), at 1/62 of
-Sonnet's cost and 6.3× its speed. That's fast, but not the "40x-200x faster" TypeSafe
-claims.
+**Bottom line:** Jev placed second of seven original configurations on weighted
+Brier score (0.369 vs. Sonnet 5's 0.344; lower is better). Its median call was
+6.3× faster at 1/62 the cost. That's fast, but not the "40x-200x faster"
+TypeSafe claims.
 
 ![Weighted Brier score with 95% intervals for each model, against a no-model baseline](docs/headline.svg)
 
@@ -82,7 +82,7 @@ against 0.369 for direct. The [full development tables](runs/diagnostic/steps-su
 [later question wording](jevbench/steps.py), and [two-question wording](jevbench/questions.py)
 give the remaining detail.
 
-## Part 2: the best Jev setup vs. LLMs
+## Part 2: Jev vs. LLMs on 770 posts
 
 How to read the table:
 
@@ -112,11 +112,6 @@ How to read the table:
 | Gemma 4 26B-A4B, local | 0.588 [0.539, 0.636] | 58.3% [54.3, 62.3] | 44.4% | 1.57 s | not billed |
 | *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
 
-A [later five-question check](docs/FIVE_QUESTION_FOLLOWUP.md) on these same
-posts is planned. It will fit both five questions and direct on the saved 2023
-answers before scoring the 2025 posts. Results are pending; the table above is
-the original benchmark.
-
 - **Sonnet 5 was best on this metric; Jev was a close second.** Sonnet's Brier lead is
   0.025 (95% CI 0.003 to 0.046). That clears the 95% interval, but not a
   Bonferroni correction for the five comparisons with Jev, so treat it as
@@ -134,6 +129,25 @@ the original benchmark.
   that exclude zero (−0.070 and −0.046). Qwen's point estimate was slightly
   better (0.410 vs. 0.415), but inconclusive (−0.005, 95% CI −0.033 to
   +0.022). Every model missed more than half of the ESH and NAH posts.
+
+### Later check: five yes/no questions
+
+After the original benchmark, I ran the five-question setup on the same 770
+posts. I fitted its answers and the direct setup's answers using only the
+separate 300-post 2023 development set. Both rows below have the same fitted
+post-processing. They are separate from the original raw-answer table above.
+
+| Jev setup | Weighted Brier ↓ [95% post-bootstrap CI] | Weighted top-1 [95% post-bootstrap CI] | Macro recall | Median call | $ per 1,000 posts |
+|---|---:|---:|---:|---:|---:|
+| Direct, fitted on 2023 | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% | 0.39 s | $0.037 |
+| Five yes/no, fitted on 2023 | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% | 0.57 s | $0.044 |
+
+The five-question point estimate was 0.009 worse on weighted Brier than fitted
+direct (paired 95% CI −0.001 to +0.019), an inconclusive difference. Neither
+fitted setup predicted ESH or NAH correctly. The five-question run cost $0.0336
+for all 770 posts; its latency was measured later than direct's, so the two
+medians are descriptive. This follow-up uses already-seen 2025 labels, not a
+fresh holdout. [Plan, full results and run log](docs/FIVE_QUESTION_FOLLOWUP.md).
 
 **Does post-processing narrow Sonnet's lead?** In a planned follow-up using
 the saved answers, with no new API calls, each configuration got the same

@@ -47,7 +47,31 @@ python -m jevbench.five_question_followup runs/followup-yesno5-2025.jsonl
 
 ## Results
 
-Pending the live run.
+Run on 2026-09-23 after the plan and the pre-run clarification were pushed.
+The [log](../runs/followup-yesno5-2025.jsonl) has 770 successful calls, no
+failures and no early stop. The [manifest](../runs/followup-yesno5-2025.meta.json)
+records a clean tree at `4958c82`, the original sample hash
+`2f8cae7c7bebe3c259efbe69664b463919a9db5b0db386d23a79d8892f82479d`,
+and the exact questions. Every record names resolved model
+`typesafe/jev-1.13-20260917`. Total billed cost was $0.03362.
+
+| Jev setup | Weighted Brier ↓ [95% CI] | Weighted top-1 [95% CI] | Macro recall | Median call | $ per 1,000 posts |
+|---|---:|---:|---:|---:|---:|
+| Direct, raw | 0.369 [0.344, 0.398] | 75.4% [72.7%, 77.8%] | 37.4% | 0.39 s | $0.037 |
+| Direct, fitted on 2023 | 0.337 [0.321, 0.354] | 78.6% [77.0%, 80.1%] | 33.0% | 0.39 s | $0.037 |
+| Five yes/no, fitted on 2023 | 0.346 [0.332, 0.361] | 76.4% [74.8%, 77.8%] | 30.1% | 0.57 s | $0.044 |
+
+Primary paired weighted Brier difference, five questions minus fitted direct:
+**+0.009 [−0.001, +0.019]**. The interval crosses zero, so the planned rule
+calls this inconclusive. ESH and NAH recall were 0% for both fitted setups.
+Five questions did not establish an advantage over direct, and the original
+raw-answer benchmark remains unchanged.
+
+The bootstrap conditions on the two regressions fitted to 2023 posts. It does
+not include uncertainty from refitting them or from repeated API calls. The
+2025 labels and original results were already known when this setup was
+chosen. Latency for five questions was measured on a later run, so its median
+is not a controlled speed comparison with direct.
 
 ## Pre-run clarification
 
