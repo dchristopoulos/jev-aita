@@ -113,8 +113,8 @@ partly calibration**. That does not show the two are equal.
   of individual posts.
 - **Recalibration compresses the field.** Gemma goes from last (0.588) to
   0.352, close to Jev's 0.339; GPT-5 nano minimal ends at 0.410, about the
-  base-rate forecast (0.415). Much of the raw spread between models was
-  calibration.
+  base-rate forecast (0.415). The regression narrows the raw spread, but this
+  analysis cannot separate calibration from changed verdict choices.
 - **Secondary transfer check:** fitting Jev's regression on 300 separate 2023
   posts gives 0.337 on the 2025 posts, versus 0.369 for Jev's raw answers.
   After this adjustment Jev chooses ESH or NAH for no post. The exploratory
@@ -131,9 +131,10 @@ reproduces the main interval. The point estimate is identical.
 ## Post-hoc audit addendum
 
 Added after an external audit of the results above. Nothing above "Results"
-has changed. Two passages in "Results" were reworded after the audit (the
-secondary transfer bullet and the note on the intervals); the original wording
-is in commit `d2ea058`.
+has changed. Three passages in "Results" were reworded after the audits (the
+secondary transfer bullet, the note on the intervals, and the last sentence of
+the "compresses the field" bullet, which made a causal claim this addendum
+disavows); the original wording is in commit `d2ea058`.
 
 **What the regression does.** It is fitted on all four probabilities, so it
 can change which verdict a model picks, not only how confident it is. It

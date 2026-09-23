@@ -219,3 +219,13 @@ def test_new_malformed_answers_score_as_uniform_but_old_ones_stay_excluded():
     old = {k: v for k, v in new.items() if k != "raw_output"}
     assert distribution(new) == {"yta": 0.25, "nta": 0.25, "esh": 0.25, "nah": 0.25}
     assert distribution(old) is None
+
+
+def test_report_note_describes_the_malformed_policy_the_logs_actually_get():
+    from pathlib import Path
+    from jevbench.report import render
+    old = [_record(v, v, item=str(i)) for i, v in enumerate(["nta", "yta", "esh", "nah"])]
+    new = [dict(r, raw_output="x") for r in old]
+    note = lambda recs: render(by_arm(recs), recs, Path("r.svg"), priors=PRIORS)
+    assert "left out of Brier and log loss" in note(old)
+    assert "uniform forecast" in note(new) and "uniform forecast" not in note(old)
