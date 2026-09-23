@@ -7,7 +7,7 @@ from dataclasses import asdict
 import pytest
 
 import jevbench.bench as bench
-from jevbench.client import Answer, ChoiceAns, production_verdict_prompt
+from jevbench.client import Answer, ChoiceAns, FatalApiError, production_verdict_prompt
 from jevbench.data import Item
 from jevbench.questions import monolithic
 
@@ -19,12 +19,13 @@ def _fake_ask(text, questions, model, label_only=False):
                                                         "nah": .1}, .7)})
 
 
-def _main(monkeypatch, tmp_path, *extra):
+def _main(monkeypatch, tmp_path, *extra, key="test-key", ask_fn=_fake_ask):
     sample = tmp_path / "sample.jsonl"
     sample.write_text("".join(
         json.dumps(asdict(Item(str(i), "t", "x", "nta", 0, []))) + "\n" for i in range(3)))
     out = tmp_path / "run.jsonl"
-    monkeypatch.setattr(bench, "ask", _fake_ask)
+    monkeypatch.setattr(bench, "ask", ask_fn)
+    monkeypatch.setattr(bench, "api_key", lambda: key)
     monkeypatch.setattr(sys, "argv", ["bench", "--data", str(sample), "--out", str(out),
                                       "--budget", "0", *extra])
     return bench.main(), out
@@ -48,6 +49,21 @@ def test_runner_refuses_to_overwrite_a_log(monkeypatch, tmp_path):
     (tmp_path / "run.jsonl").write_text("")
     code, _ = _main(monkeypatch, tmp_path, "--models", "~typesafe/jev-latest")
     assert code == 1
+
+
+def test_missing_key_does_not_reserve_the_output_path(monkeypatch, tmp_path):
+    code, out = _main(monkeypatch, tmp_path, "--models", "~typesafe/jev-latest", key="")
+    assert code == 1 and not out.exists()
+
+
+def test_bad_key_keeps_a_partial_log_without_blocking_retry(monkeypatch, tmp_path):
+    def rejected(*args, **kwargs):
+        raise FatalApiError("bad key")
+
+    code, out = _main(monkeypatch, tmp_path, "--models", "~typesafe/jev-latest",
+                      ask_fn=rejected)
+    assert code == 1 and not out.exists()
+    assert len(list(tmp_path.glob("run.jsonl.failed-*"))) == 1
 
 
 @pytest.mark.parametrize("models,arm", [

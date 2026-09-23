@@ -32,7 +32,7 @@ Whether someone is the asshole is an opinion, so there is no true answer
 here. What this benchmark measures is narrower: **can a model predict the
 verdict Reddit gave?** The target is the post's official verdict flair, which
 AITA sets from the verdict in the top-voted comment. A model is "right" when
-its most likely verdict matches that flair. The Brier score also gives partial
+its returned verdict matches that flair. The Brier score also gives partial
 credit: 70% on the flair's verdict scores better than 30%.
 
 Reddit's verdict is itself noisy. One top comment decides it, even when
@@ -93,7 +93,8 @@ How to read the table:
   twice as many ESH and NAH posts as that, so there are enough to measure.
   Weighting scores each verdict at its real share: an NTA post counts about
   1.6× as much as in a plain average, an ESH post about half as much.
-- **Top-1** is plain accuracy: was the most likely verdict the right one?
+- **Top-1** checks whether the returned verdict matched the flair. The table
+  weights that hit rate to Reddit's verdict mix.
 - **Macro recall** averages the hit rate of each of the four verdicts, so a
   model that always says NTA gets 25%.
 - Brackets are 95% intervals from resampling posts. They measure variation

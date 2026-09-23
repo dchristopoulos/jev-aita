@@ -48,3 +48,11 @@ python -m jevbench.five_question_followup runs/followup-yesno5-2025.jsonl
 ## Results
 
 Pending the live run.
+
+## Pre-run clarification
+
+Use `python3` in the commands above on systems without a `python` alias. This
+changes the executable name, not the test or analysis. The scorer now checks
+the saved manifest against the original sample hash and five-question wording
+and prints rare-verdict recall for both fitted setups. These checks do not
+change the planned outcome or decision rule.

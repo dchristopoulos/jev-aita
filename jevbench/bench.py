@@ -26,7 +26,7 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from .client import (LOCAL_PREFIX, PRICING, ApiError, FatalApiError, production_verdict_prompt,
+from .client import (LOCAL_PREFIX, PRICING, ApiError, FatalApiError, api_key, production_verdict_prompt,
                      standard_choice_prompt, ask, local_chat_url)
 from .data import Item, load
 from .questions import balanced, monolithic
@@ -250,6 +250,9 @@ def main() -> int:
     if args.budget and projected > args.budget:
         print("Projected cost exceeds the cap. Raise --budget or lower -n.", file=sys.stderr)
         return 1
+    if any(not m.startswith(LOCAL_PREFIX) for m in args.models) and not api_key():
+        print("No OpenRouter API key. Set OPENROUTER_API_KEY or add it to .env.", file=sys.stderr)
+        return 1
 
     out = args.out or RUNS / f"{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
     if out.exists() or out.with_suffix(".meta.json").exists():
@@ -262,6 +265,10 @@ def main() -> int:
     try:
         totals = run(args.models, args.arms, items, out, args.budget)
     except ApiError as e:
+        if out.exists():
+            failed = out.with_name(f"{out.name}.failed-{time.time_ns()}")
+            out.rename(failed)
+            print(f"partial log kept at {failed}", file=sys.stderr)
         print(f"\nfatal: {e}", file=sys.stderr)
         return 1
 

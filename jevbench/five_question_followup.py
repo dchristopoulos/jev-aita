@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from collections import Counter, defaultdict
@@ -18,6 +19,21 @@ DEV = (ROOT / "runs/diagnostic/steps-dev-100.jsonl",
        ROOT / "runs/diagnostic/steps-dev-extra-200.jsonl")
 DIRECT = ROOT / "runs/final-jev-2025.jsonl"
 PRIORS = ROOT / "data/final-ucb-2025.source.json"
+SAMPLE_SHA = "2f8cae7c7bebe3c259efbe69664b463919a9db5b0db386d23a79d8892f82479d"
+# The question text committed in 15f36f9, before any five-question calls.
+QUESTION_SHA = "00d27509b805c7549ca4fcbdad9c6fe4554403ad3153c862e2b1cbf52d7a17b4"
+
+
+def check_manifest(log: Path) -> None:
+    """Reject a log from a different sample, model, or five-question prompt."""
+    meta = json.loads(log.with_suffix(".meta.json").read_text())
+    prompt = meta["prompts"]["jev/yesno5"]
+    digest = hashlib.sha256(json.dumps(prompt, sort_keys=True, separators=(",", ":"),
+                                       ensure_ascii=False).encode()).hexdigest()
+    if (meta["sample_sha256"] != SAMPLE_SHA or meta["models"] != ["~typesafe/jev-latest"]
+            or meta["arms"] != ["yesno5"] or meta["n_posts"] != 770
+            or digest != QUESTION_SHA):
+        raise ValueError("run manifest does not match the planned sample, model, or questions")
 
 
 def arm_rows(recs: list[dict], arm: str, count: int) -> dict[str, dict]:
@@ -26,6 +42,8 @@ def arm_rows(recs: list[dict], arm: str, count: int) -> dict[str, dict]:
         raise ValueError(f"{arm}: expected {count} distinct posts, got {len(rows)} rows")
     if any(r.get("error") or r.get("parse_failed") for r in rows):
         raise ValueError(f"{arm}: failed or malformed answers; run is incomplete")
+    if any(r.get("model") != "~typesafe/jev-latest" for r in rows):
+        raise ValueError(f"{arm}: wrong model")
     if arm == "yesno5" and any(
         set(r["probs"]) != set(YESNO) or
         any(not isinstance(p, (int, float)) or not math.isfinite(p) or not 0 <= p <= 1
@@ -78,6 +96,7 @@ def evaluate(dev: list[dict], direct: list[dict], five: list[dict], priors: dict
         return out
 
     losses = {}
+    rare = {}
     lines = ["| Jev setup | Weighted Brier ↓ [95% CI] | Weighted top-1 [95% CI] | "
              "Macro recall | Median call | $ per 1,000 posts |",
              "|---|---:|---:|---:|---:|---:|"]
@@ -95,15 +114,17 @@ def evaluate(dev: list[dict], direct: list[dict], five: list[dict], priors: dict
         lines.append(f"| {name} | {b:.3f} [{blo:.3f}, {bhi:.3f}] | "
                      f"{a:.1%} [{alo:.1%}, {ahi:.1%}] | {macro:.1%} | "
                      f"{latency:.2f} s | ${cost:.3f} |")
-        if name == "Five yes/no, fitted on 2023":
-            lines.append("Rare-class recall: " + ", ".join(
-                f"{v.upper()} {sum(hits[i] for i in ids if truth[i] == v) / sum(truth[i] == v for i in ids):.1%}"
-                for v in ("esh", "nah")))
+        if name != "Direct, raw":
+            rare[name] = " / ".join(
+                f"{sum(hits[i] for i in ids if truth[i] == v) / sum(truth[i] == v for i in ids):.1%}"
+                for v in ("esh", "nah"))
 
     diff = {i: losses["Five yes/no, fitted on 2023"][i] -
             losses["Direct, fitted on 2023"][i] for i in ids}
     d, lo, hi = stratified(by_class(diff), priors)
     decision = "better" if hi < 0 else "worse" if lo > 0 else "inconclusive"
+    lines.append("\nESH / NAH recall: " + "; ".join(f"{name}: {value}" for name, value in rare.items()))
+    lines.append("Served by: " + ", ".join(sorted({r["resolved_model"] for r in new.values()})))
     lines.append(f"\nPaired weighted Brier difference, five minus direct fitted: "
                  f"{d:+.3f} [{lo:+.3f}, {hi:+.3f}]; {decision}.")
     return "\n".join(lines)
@@ -113,6 +134,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("five_log", type=Path)
     args = ap.parse_args()
+    check_manifest(args.five_log)
     print(evaluate(load(*DEV), load(DIRECT), load(args.five_log),
                    json.loads(PRIORS.read_text())["eligible_mix"]))
 
