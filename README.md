@@ -1,12 +1,11 @@
 # Jev vs. LLMs on Reddit's "Am I the Asshole?"
 
-**Bottom line:** on the main metric (Brier score weighted to the verdict mix
-of the 1,839 eligible 2025 posts), Jev came second of seven model
-configurations, behind Sonnet 5: 0.369 vs. 0.344. Sonnet's lead is borderline
-once you account for multiple comparisons, and on unweighted Brier there's no
-clear difference (Jev 0.556, Sonnet 0.563). Jev
-cost 1/62 as much as Sonnet and was 6.3× faster, not the "40x-200x faster"
-TypeSafe claims.
+**Bottom line:** Jev came a narrow second of seven configurations, behind
+Sonnet 5 (Brier score 0.369 vs. 0.344, lower is better), at 1/62 of Sonnet's
+cost and 6.3× its speed. That's fast, but not the "40x-200x faster" TypeSafe
+claims.
+
+![Weighted Brier score with 95% intervals for each model, against a no-model baseline](docs/headline.svg)
 
 [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) is
 TypeSafe's "System One" model. It doesn't write text: you give it a situation
@@ -51,10 +50,14 @@ one probability), **Choice** (a probability for each option) and **Score** (a
 probability for each level of a scale). So "is the poster the asshole?" can be
 asked directly, or split into smaller judgments that a combining step turns
 into a verdict. I tried eight setups, and **none showed a clear advantage
-over asking directly**. In the 300-post check, 5 yes/no questions had the best
-point estimate (Brier −0.008), but its 95% interval included zero (−0.026 to
-+0.010). These were exploratory comparisons under one fixed regression and
-cross-validation setup:
+over asking directly**. The closest, 5 yes/no questions, was within noise
+(Brier −0.008, 95% CI −0.026 to +0.010).
+
+<details>
+<summary><b>All 8 setups, what Jev was asked, and how each did</b></summary>
+
+These were exploratory comparisons under one fixed regression and
+cross-validation setup.
 
 | Setup | Questions per call | What Jev is asked | Result |
 |---|---:|---|---|
@@ -66,6 +69,8 @@ cross-validation setup:
 | **2 severity scores** | 2 Score | How wrong was the poster? How wrong was the other party? (none / minor lapse / owes an apology / caused real harm) | no clear difference (+0.009 [−0.006, +0.024]) |
 | **5 mixed steps** | 3 Score + 2 Choice | the two severity scores; what the poster did (reasonable & considerate / reasonable but harsh / unreasonable / mostly reacting); what kind of conflict (one side wrong / both bad / fair clash / misunderstanding); how one-sided the account is | no clear difference (+0.001) |
 | **5 steps + direct** | 6 | the five steps plus the direct question | no clear difference (+0.002) |
+
+</details>
 
 How the two rounds ran:
 
@@ -93,8 +98,6 @@ the common verdicts. It's post-processing, the chat models would need the
 same adjustment to be fair, and it's not in Part 2.
 
 ## Part 2: the best Jev setup vs. LLMs
-
-![Weighted Brier score with 95% intervals for each model, against a no-model baseline](docs/headline.svg)
 
 How to read the table:
 
@@ -127,7 +130,8 @@ How to read the table:
   0.025 (95% CI 0.003 to 0.046). That clears the 95% interval, but not a
   Bonferroni correction for the five comparisons with Jev, so treat it as
   borderline. On log loss, Sonnet's lead is clearer and does survive the
-  correction. Jev beat both GPT-5 nano settings and both local models.
+  correction. Scored unweighted, there's no clear difference (Jev 0.556,
+  Sonnet 0.563). Jev beat both GPT-5 nano settings and both local models.
 - **Jev was 6× faster than Sonnet, not 40–200×.** Its median call took 0.39 s,
   inside TypeSafe's 70–500 ms claim, and it was 62× cheaper than Sonnet. Against
   GPT-5 nano it was 3.9× faster and 1.5× cheaper than minimal effort, and 12×
@@ -155,16 +159,14 @@ count as wrong. More metrics, confusion matrices and calibration are in the
 
 ## What this does not show
 
-This compares probability-producing configurations, not each model's best
-possible classifier. Every model was asked for four probabilities: Jev through
-its native Choice question, chat models through a prompt with the same verdict
-definitions that returns JSON. The wording differs slightly: Jev is asked which
-verdict the subreddit would reach, the chat models to predict the official
-flair. The local models ran as 4-bit builds with reasoning off and don't stand
-for their full-precision or hosted versions. Most people would ask a chat model for one label instead, so this
-says nothing about label-only accuracy, or about speed and cost for a one-word
-answer. And, as [above](#what-counts-as-correct), it says nothing about who is
-actually right, only how well each model predicts Reddit.
+- **Who is actually right.** Only how well each model predicts Reddit's verdict
+  ([see above](#what-counts-as-correct)).
+- **Label-only use.** Every model had to give four probabilities, Jev natively
+  and the chat models as JSON. Asking a chat model for one label would change
+  its accuracy, speed and cost.
+- **Full-size local models.** Qwen and Gemma ran as 4-bit builds with reasoning
+  off. The prompts also differ slightly: Jev is asked which verdict the
+  subreddit would reach, the chat models to predict the official flair.
 
 ## Method details
 
