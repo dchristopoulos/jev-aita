@@ -1,8 +1,8 @@
 # Jev vs. LLMs on Reddit's "Am I the Asshole?"
 
-**Bottom line:** Jev came a narrow second of seven configurations, behind
-Sonnet 5 (Brier score 0.369 vs. 0.344, lower is better), at 1/62 of Sonnet's
-cost and 6.3× its speed. That's fast, but not the "40x-200x faster" TypeSafe
+**Bottom line:** on weighted Brier score (lower is better), Jev came a narrow
+second of seven configurations, behind Sonnet 5 (0.369 vs. 0.344), at 1/62 of
+Sonnet's cost and 6.3× its speed. That's fast, but not the "40x-200x faster" TypeSafe
 claims.
 
 ![Weighted Brier score with 95% intervals for each model, against a no-model baseline](docs/headline.svg)
