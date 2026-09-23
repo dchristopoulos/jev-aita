@@ -1,3 +1,5 @@
+import pytest
+
 from jevbench import sample_2025
 
 
@@ -20,3 +22,13 @@ def test_2025_sample_is_frozen_by_seed_and_filters_leaks(monkeypatch):
     assert len(items) == len(labels) == 4
     assert eligible["nta"] == 1
     assert all(item.id != "nta0" and item.top_comments == [] for item in items)
+
+
+def test_fetched_rows_must_match_the_pinned_hash(monkeypatch, tmp_path):
+    from jevbench import sample_2025
+    monkeypatch.setattr(sample_2025, "get_json",
+                        lambda url: {"num_rows_total": 1, "rows": [{"row": {"id": "x"}}]})
+    out = tmp_path / "raw.jsonl"
+    with pytest.raises(SystemExit, match="has changed"):
+        sample_2025.fetch_raw(out)
+    assert not out.exists()

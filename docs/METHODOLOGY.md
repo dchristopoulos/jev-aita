@@ -150,11 +150,16 @@ and electricity are not free and are not counted.
 
 The full chain is checked by SHA-256 at every step:
 
-1. The pinned `dilemmas/train.parquet` file (`40f43df2…`, as listed by
-   Hugging Face).
-2. [`export_source.py`](../scripts/export_source.py) converts it to JSONL
-   and checks the result against `raw_sha256` (`aa9ca88f…`) in
-   `data/final-ucb-2025.source.json`.
+1. The dataset's `dilemmas` table on Hugging Face. The final runs used the
+   pinned `dilemmas/train.parquet` file (`40f43df2…`, revision `cb4c298c`),
+   converted to JSONL by a pyarrow script that is now removed (see git
+   history).
+2. `python -m jevbench.sample_2025 --fetch` now downloads the same rows through
+   the Hugging Face row API instead, with no dependencies, and checks them
+   against `raw_sha256` (`aa9ca88f…`) in `data/final-ucb-2025.source.json`.
+   The API output is byte-identical to the parquet export. The API serves
+   the dataset's current version, so if the dataset changes, the check fails
+   rather than silently building a different sample.
 3. `python -m jevbench.sample_2025` selects the 770 posts with seed 20260923.
    The output hashes to `2f8cae7c…`, the `sample_sha256` in every final
    manifest.

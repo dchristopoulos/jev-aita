@@ -1,4 +1,9 @@
-"""Freeze a reproducible 2025 AITA holdout from the Berkeley D-Lab dilemmas."""
+"""Freeze a reproducible 2025 AITA holdout from the Berkeley D-Lab dilemmas.
+
+`--fetch` downloads the dilemmas through the Hugging Face row API first. The
+API serves the dataset's current version, so the download is checked against
+`raw_sha256` in the committed source record and refused if it has drifted.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +11,9 @@ import argparse
 import hashlib
 import json
 import random
+import time
+import urllib.error
+import urllib.request
 from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
@@ -17,6 +25,41 @@ REVISION = "cb4c298cbfa93ce9cdf56685f12a55b0a6928110"
 FLAIR = {"Not the A-hole": "nta", "Asshole": "yta",
          "Everyone Sucks": "esh", "No A-holes here": "nah"}
 TARGET = {"nta": 365, "yta": 285, "esh": 65, "nah": 55}
+HF_ROWS = ("https://datasets-server.huggingface.co/rows"
+           f"?dataset={DATASET}&config=dilemmas&split=train")
+SOURCE = Path(__file__).resolve().parent.parent / "data" / "final-ucb-2025.source.json"
+
+
+def get_json(url: str, tries: int = 6) -> dict:
+    """GET with backoff: the row API rate-limits a full 30-page download."""
+    for attempt in range(tries):
+        try:
+            with urllib.request.urlopen(url, timeout=60) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 500, 502, 503, 504) or attempt == tries - 1:
+                raise
+            time.sleep(int(e.headers.get("Retry-After") or 0) or 2 ** (attempt + 1))
+    raise AssertionError("unreachable")
+
+
+def fetch_raw(out: Path) -> None:
+    """Every dilemma row, as one JSON line each, in the bytes the final runs used."""
+    rows: list[dict] = []
+    while True:
+        page = get_json(f"{HF_ROWS}&offset={len(rows)}&length=100")
+        rows += [r["row"] for r in page["rows"]]
+        if not page["rows"] or len(rows) >= page["num_rows_total"]:
+            break
+    data = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows).encode()
+    got = hashlib.sha256(data).hexdigest()
+    want = json.loads(SOURCE.read_text())["raw_sha256"]
+    if got != want:
+        raise SystemExit(f"Hugging Face returned {len(rows)} rows hashing to {got[:12]}, "
+                         f"not the pinned {want[:12]}; the dataset has changed since the runs")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(data)
+    print(f"{len(rows)} rows -> {out}, sha256 matches the pinned source")
 
 
 def select(raw: list[dict], seed: int = 20260923) -> tuple[list[Item], list[dict], dict]:
@@ -55,7 +98,11 @@ def main() -> None:
     ap.add_argument("--raw", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--seed", type=int, default=20260923)
+    ap.add_argument("--fetch", action="store_true",
+                    help="download --raw from Hugging Face first (checked against its pinned hash)")
     args = ap.parse_args()
+    if args.fetch:
+        fetch_raw(args.raw)
     labels_path = args.out.with_suffix(".labels.jsonl")
     meta_path = args.out.with_suffix(".source.json")
     if args.out.exists() or labels_path.exists():
