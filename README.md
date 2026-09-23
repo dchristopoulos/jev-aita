@@ -103,9 +103,9 @@ How to read the table:
 
 | Model | Weighted Brier ↓ [95% post-bootstrap CI] | Weighted top-1 [95% post-bootstrap CI] | Macro recall | Median call | $ per 1,000 posts |
 |---|---:|---:|---:|---:|---:|
-| *Later check: Jev direct, fitted on 2023* | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% | 0.39 s | $0.037 |
+| *Follow-up: Jev, one question, adjusted using 2023 posts* | 0.337 [0.321, 0.354] | 78.6% [77.0, 80.1] | 33.0% | 0.39 s | $0.037 |
 | Sonnet 5 | 0.344 [0.321, 0.370] | 76.9% [74.5, 79.1] | 36.1% | 2.46 s | $2.291 |
-| *Later check: Jev five yes/no, fitted on 2023* | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% | 0.57 s | $0.044 |
+| *Follow-up: Jev, five yes/no questions, adjusted using 2023 posts* | 0.346 [0.332, 0.361] | 76.4% [74.8, 77.8] | 30.1% | 0.57 s | $0.044 |
 | **Jev, direct question** | 0.369 [0.344, 0.398] | 75.4% [72.7, 77.8] | 37.4% | 0.39 s | $0.037 |
 | Qwen 3.6 35B-A3B, local | 0.410 [0.382, 0.437] | 75.3% [73.3, 77.2] | 30.3% | 1.62 s | not billed |
 | *No model: base rates / always NTA* | *0.415* | *74.0%* | *25.0%* | | |
@@ -132,13 +132,15 @@ How to read the table:
   better (0.410 vs. 0.415), but inconclusive (−0.005, 95% CI −0.033 to
   +0.022). Every model missed more than half of the ESH and NAH posts.
 
-The two later-check rows use the same fitted post-processing, trained on a
-separate 300-post 2023 set. They are not part of the original seven-way ranking.
-Five questions scored 0.009 worse than fitted direct on weighted Brier (paired
-95% CI −0.001 to +0.019), an inconclusive difference. Neither fitted setup
-predicted ESH or NAH correctly. The five-question run cost $0.0336 for all 770
-posts; its latency was measured later than direct's. The 2025 labels were
-already known when this follow-up was chosen, so this is not a fresh holdout.
+For the two follow-up rows, a rule trained on 300 separate 2023 posts adjusted
+Jev's probabilities before scoring. These are not new Jev models or part of the
+original seven-way ranking.
+Five questions scored 0.009 worse than the adjusted one-question answer on
+weighted Brier (paired 95% CI −0.001 to +0.019), an inconclusive difference.
+Neither adjusted setup predicted ESH or NAH correctly. The five-question run
+cost $0.0336 for all 770 posts; its latency was measured later than direct's.
+The 2025 labels were already known when this follow-up was chosen, so this is
+not a fresh holdout.
 [Plan, full results and run log](docs/FIVE_QUESTION_FOLLOWUP.md).
 
 **Does post-processing narrow Sonnet's lead?** In a planned follow-up using
