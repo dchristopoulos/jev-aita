@@ -153,6 +153,40 @@ model picked ESH or NAH afterward. This analysis also used already-known
 test results, so it does not replace the original ranking.
 [Plan and full results](docs/RECALIBRATION_PLAN.md).
 
+### Extra check: scoring against how commenters split
+
+This check came from a reader's suggestion, after the main results: instead
+of the single official verdict, compare each model's probabilities with how
+the post's commenters actually split. For example, if commenters went 60% NTA,
+30% YTA and 10% ESH, a model saying exactly that scores 0. Each comment
+counts as one vote; INFO comments are left out. It re-scores the saved
+answers, with no new calls, and does not change the main table.
+
+| Model | Distance from commenter split ↓ [95% CI] | Confidence vs. crowd agreement (r) |
+|---|---:|---:|
+| Sonnet 5 | 0.146 [0.131, 0.162] | +0.21 |
+| **Jev, direct question** | 0.173 [0.156, 0.190] | +0.24 |
+| *Official verdict, taken as 100% certain* | *0.173 [0.159, 0.188]* | |
+| *No model: base rates* | *0.183 [0.174, 0.193]* | |
+| Qwen 3.6 35B-A3B, local | 0.208 [0.187, 0.229] | +0.09 |
+| GPT-5 nano, low effort | 0.245 [0.226, 0.265] | +0.11 |
+| Jev, two questions | 0.283 [0.269, 0.299] | +0.23 |
+| GPT-5 nano, minimal effort | 0.294 [0.278, 0.311] | +0.06 |
+| Gemma 4 26B-A4B, local | 0.373 [0.338, 0.408] | +0.19 |
+
+- Sonnet was clearly closest to the commenters: 0.026 closer than Jev (95% CI:
+  from 0.011 to 0.043 closer).
+- Jev's edge over base rates disappears here: 0.011 closer, which could be
+  noise (95% CI: from 0.029 closer to 0.008 further). Sonnet still clearly
+  beats base rates.
+- Jev was exactly as close to the commenters as the official verdict itself.
+- The last column is the correlation between how confident a model was and
+  how much commenters agreed. All models were a bit more confident on posts
+  where commenters agreed, but the link is weak (r from 0.06 to 0.24).
+- Weighting comments by upvotes gives the same order of models.
+- Comments are not independent votes: people read the thread before replying.
+  Treat this as exploratory.
+
 ## What this does not show
 
 - **Who is actually right.** Only how well each model predicts Reddit's verdict
@@ -288,7 +322,12 @@ Leave out the id for the first post, add `--live` to ask Jev again, or
 `--short` to print only the post's first lines (this works with `--random` and
 `--text` too). With the posts rebuilt, adding
 `--source-raw data/ucb-2025-raw.jsonl` to the report command restores its
-missing section.
+missing section. The commenter-split check also needs the rebuilt
+posts:
+
+```bash
+python -m jevbench.crowd
+```
 
 ### Run a new benchmark
 
