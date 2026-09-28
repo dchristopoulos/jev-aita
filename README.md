@@ -3,7 +3,9 @@
 **Bottom line:** In the original seven-setup benchmark, Jev came second,
 behind Sonnet 5 (Brier score 0.369 vs. 0.344; lower is better). Jev's median
 call was 6.3× faster than Sonnet's, and 62× cheaper. That's fast, but not
-the "40x-200x faster" TypeSafe claims.
+the "40x-200x faster" TypeSafe claims. Scored instead against how commenters
+split, Sonnet's lead is clearer and unadjusted Jev no longer clearly beats
+guessing from base rates ([Part 3](#part-3-scoring-against-how-commenters-split)).
 
 ![Weighted Brier scores with 95% intervals for the original runs and two later adjusted Jev results](docs/headline.svg)
 
@@ -47,6 +49,8 @@ commenters said (weighted by upvotes); on the other 66, it doesn't. Scoring
 only the 704 clearer posts tells the same story: Jev 63.4% vs. Sonnet 64.3%
 plain accuracy ([details](docs/results.md#flair-and-comment-disagreement)).
 "Not enough info" posts are left out, since that's not a verdict on anyone.
+[Part 3](#part-3-scoring-against-how-commenters-split) scores the
+models against the full split of commenter verdicts instead.
 
 ## Part 1: choosing Jev's question before the benchmark
 
@@ -153,39 +157,74 @@ model picked ESH or NAH afterward. This analysis also used already-known
 test results, so it does not replace the original ranking.
 [Plan and full results](docs/RECALIBRATION_PLAN.md).
 
-### Extra check: scoring against how commenters split
+## Part 3: scoring against how commenters split
 
-This check came from a reader's suggestion, after the main results: instead
-of the single official verdict, compare each model's probabilities with how
-the post's commenters actually split. For example, if commenters went 60% NTA,
-30% YTA and 10% ESH, a model saying exactly that scores 0. Each comment
-counts as one vote; INFO comments are left out. It re-scores the saved
-answers, with no new calls, and does not change the main table.
+The official verdict comes from one top-voted comment, even when the thread
+was divided. A reader suggested a second target: compare each model's
+probabilities with how the post's commenters actually split. For example, if
+commenters went 60% NTA, 30% YTA and 10% ESH, a model saying exactly that
+scores 0. Each comment counts as one vote, INFO comments are left out, and
+scores are weighted to Reddit's verdict mix as in Part 2. The shares come
+ready-made in the dataset: 25 to 99 verdict comments per post (median 54),
+classified by the dataset's authors. I didn't re-check how they read a verdict
+from each comment.
 
-| Model | Distance from commenter split ↓ [95% CI] | Confidence vs. crowd agreement (r) |
-|---|---:|---:|
-| Sonnet 5 | 0.146 [0.131, 0.162] | +0.21 |
-| **Jev, direct question** | 0.173 [0.156, 0.190] | +0.24 |
-| *Official verdict, taken as 100% certain* | *0.173 [0.159, 0.188]* | |
-| *No model: base rates* | *0.183 [0.174, 0.193]* | |
-| Qwen 3.6 35B-A3B, local | 0.208 [0.187, 0.229] | +0.09 |
-| GPT-5 nano, low effort | 0.245 [0.226, 0.265] | +0.11 |
-| Jev, two questions | 0.283 [0.269, 0.299] | +0.23 |
-| GPT-5 nano, minimal effort | 0.294 [0.278, 0.311] | +0.06 |
-| Gemma 4 26B-A4B, local | 0.373 [0.338, 0.408] | +0.19 |
+This re-scores the same saved answers from Part 2, with no new calls. It was
+chosen after the main results were known, so treat it as exploratory; it does
+not replace the Part 2 ranking.
 
-- Sonnet was clearly closest to the commenters: 0.026 closer than Jev (95% CI:
-  from 0.011 to 0.043 closer).
-- Jev's edge over base rates disappears here: 0.011 closer, which could be
-  noise (95% CI: from 0.029 closer to 0.008 further). Sonnet still clearly
-  beats base rates.
-- Jev was exactly as close to the commenters as the official verdict itself.
-- The last column is the correlation between how confident a model was and
-  how much commenters agreed. All models were a bit more confident on posts
-  where commenters agreed, but the link is weak (r from 0.06 to 0.24).
-- Weighting comments by upvotes gives the same order of models.
+| Model and setup | Part 2: vs. official verdict (weighted Brier ↓) | Part 3: vs. commenter split (distance ↓) [95% CI] | Confidence vs. crowd agreement (r) |
+|---|---:|---:|---:|
+| *Jev, direct + 2023-trained adjustment* | 0.337 | 0.143 [0.131, 0.155] | +0.15 |
+| *Jev, five yes/no + 2023-trained adjustment* | 0.346 | 0.143 [0.132, 0.155] | +0.17 |
+| Sonnet 5 | 0.344 | 0.146 [0.131, 0.162] | +0.21 |
+| **Jev, direct question** | 0.369 | 0.173 [0.156, 0.190] | +0.24 |
+| *Official verdict, taken as 100% certain* | | *0.173 [0.159, 0.188]* | |
+| *No model: base rates* | *0.415* | *0.183 [0.174, 0.193]* | |
+| Qwen 3.6 35B-A3B, local | 0.410 | 0.208 [0.187, 0.229] | +0.09 |
+| GPT-5 nano, low effort | 0.480 | 0.245 [0.226, 0.265] | +0.11 |
+| Jev, two questions | 0.515 | 0.283 [0.269, 0.299] | +0.23 |
+| GPT-5 nano, minimal effort | 0.569 | 0.294 [0.278, 0.311] | +0.06 |
+| Gemma 4 26B-A4B, local | 0.588 | 0.373 [0.338, 0.408] | +0.19 |
+
+The two scores use different targets, so compare rows within a column, not
+across columns. The italic rows are not raw model answers:
+
+- **Jev + 2023-trained adjustment** are the same adjusted Jev rows as in Part
+  2. Sonnet and the other models got no adjustment, so these rows are not a
+  like-for-like win.
+- **Official verdict, taken as 100% certain** is what a model would score if
+  it always knew Reddit's official verdict and put 100% on it. It doesn't
+  score 0, because commenters often disagree with the official verdict. It
+  shows how much the single verdict hides.
+- **No model: base rates** gives every post the same answer, Reddit's overall
+  mix: 74.0% NTA, 18.6% YTA, 3.9% ESH, 3.5% NAH. It doesn't read the post, so
+  any useful model should beat it.
+
+What changes compared with Part 2:
+
+- **Among unadjusted setups, Sonnet was clearly closest to the commenters:**
+  0.026 closer than Jev (95% CI: from 0.011 to 0.043 closer). That is a
+  clearer gap than in Part 2.
+- **Unadjusted Jev no longer clearly beats base rates:** 0.011 closer, which
+  could be noise (95% CI: from 0.029 closer to 0.008 further). Sonnet still
+  clearly beats them (0.037 closer, 95% CI 0.020 to 0.054). Every other
+  unadjusted setup, Qwen included, was further from the commenters than base
+  rates.
+- **Unadjusted Jev was about as close to the commenters as the official
+  verdict itself** (0.173 each, after rounding).
+- **The adjusted Jev rows clearly beat base rates** (about 0.040 closer, 95% CI
+  roughly 0.028 to 0.052), and score slightly closer than raw Sonnet.
+- **Confidence tracks agreement only weakly.** The last column is the
+  correlation between a model's top probability and the share of commenters
+  who gave the most common verdict, across posts. Every model was a bit
+  more confident when commenters agreed, but the link is weak (r from 0.06
+  to 0.24). The adjustment made it weaker for Jev (0.24 to 0.15).
+- Apart from Sonnet and adjusted five-question Jev swapping places, models
+  keep the same order in both columns. Weighting comments by upvotes keeps the
+  Part 3 order.
+- Qwen's 4 malformed answers are left out here rather than counted as wrong.
 - Comments are not independent votes: people read the thread before replying.
-  Treat this as exploratory.
 
 ## What this does not show
 
@@ -335,7 +374,8 @@ python -m jevbench.crowd
 run's manifest records the exact prompts.
 
 ```
-jevbench/   runner, clients, metrics, report, viewer, step setups, recalibration (stdlib only)
+jevbench/   runner, clients, metrics, report, viewer, step setups, recalibration,
+            commenter-split check (stdlib only)
 scripts/    prompt verification against billed tokens (needs tiktoken)
 runs/       final logs; diagnostic/ holds later checks and pilots; dev-2023/ the first round
 docs/       results, methodology, protocol and charts

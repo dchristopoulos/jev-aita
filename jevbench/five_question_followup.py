@@ -54,7 +54,8 @@ def arm_rows(recs: list[dict], arm: str, count: int) -> dict[str, dict]:
 
 
 def evaluate(dev: list[dict], direct: list[dict], five: list[dict], priors: dict,
-             chart_rows: list[tuple] | None = None) -> str:
+             chart_rows: list[tuple] | None = None,
+             fixed_out: dict | None = None) -> str:
     dev_one = arm_rows(dev, "monolithic", 300)
     dev_five = arm_rows(dev, "yesno5", 300)
     raw = arm_rows(direct, "monolithic", 770)
@@ -82,6 +83,8 @@ def evaluate(dev: list[dict], direct: list[dict], five: list[dict], priors: dict
 
     preds = {"Direct, fitted on 2023": fitted(dev_one, raw),
              "Five yes/no, fitted on 2023": fitted(dev_five, new)}
+    if fixed_out is not None:
+        fixed_out.update(preds)
     raw_probs = {i: distribution(raw[i]) for i in ids}
     if any(p is None for p in raw_probs.values()):
         raise ValueError("raw direct probabilities are incomplete")
